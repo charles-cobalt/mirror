@@ -298,10 +298,16 @@ function drawSheet(c,t,done){const W=2400,RH=50,F=26,pad=14;let Lw=Math.round(W*
  const g0=document.createElement('canvas').getContext('2d');g0.font='700 '+F+'px DINish, sans-serif';
  const zb=F-6,mw=s=>g0.measureText(s).width,HDR='INITIAL NOTES | SETUP PLAN | POST NOTES | SETUP DEVIATION | MISTAKES | LESSONS';
  let need=Lw;for(const r of rows){if(r.cells){const W8=r.cells.map(c=>c.w||1),WS=W8.reduce((p,q)=>p+q,0);r.cells.forEach((cl,i)=>{const n=cl.opts?zb+10+mw(cl.opts[0])+2*pad:mw(cl.text)+2*pad;need=Math.max(need,n*WS/W8[i])})}else if(r.opts){need=Math.max(need,(r.label?mw(r.label)+pad:0)+r.opts.reduce((a,o)=>a+mw(o)+zb+36,0)+pad)}else if(r.text)need=Math.max(need,mw(r.text)+2*pad)}
- Lw=Math.ceil(Math.min(need,W-3*RH-mw(HDR)-2*pad));
+ Lw=Math.ceil(Math.min(need,W*0.42,W-3*RH-mw(HDR)-2*pad));
+ const LH=F+12,hOf=n=>n<=1?RH:n*LH+16;
+ const wrapTxt=(s,maxw)=>{const out=[];for(const para of String(s).split('\n')){let line='';for(let w of para.split(/\s+/).filter(Boolean)){while(mw(w)>maxw){let k=w.length;while(k>1&&mw(w.slice(0,k))>maxw)k--;if(line){out.push(line);line=''}out.push(w.slice(0,k));w=w.slice(k)}const t2=line?line+' '+w:w;if(mw(t2)>maxw&&line){out.push(line);line=w}else line=t2}out.push(line)}return out};
+ for(const r of rows){
+  if(r.cells){r.W8=r.cells.map(c=>c.w||1);r.WS=r.W8.reduce((p,q)=>p+q,0);let n=1;r.cells.forEach((cl,i)=>{const cw=Lw*r.W8[i]/r.WS;cl.ls=cl.opts?wrapTxt(cl.opts[0],cw-2*pad-zb-10):wrapTxt(cl.text,cw-2*pad);n=Math.max(n,cl.ls.length)});r.h=hOf(n)}
+  else if(r.opts){const x0=pad+(r.label?mw(r.label)+pad:0);let x=x0,line=0;r.pl=[];for(const o of r.opts){const wd=zb+8+mw(o);if(x>x0&&x+wd>Lw-pad){line++;x=x0}r.pl.push({o,x,line});x+=wd+28}r.h=hOf(line+1)}
+  else if(r.text){r.ls=wrapTxt(r.text,Lw-2*pad);r.h=hOf(r.ls.length)}else r.h=RH}
  const Rw=W-Lw,tw=Rw-2*pad,notes=cfg.notes.filter(([k])=>t.notes[k]);
  g0.font='400 '+F+'px DINish, sans-serif';let rh=RH+pad;for(const [k,l] of notes){rh+=F+8+lines(g0,U(t.notes[k]),tw).length*(F+6)+pad}
- const lh=rows.length*RH,bodyH=Math.max(lh,rh,RH*9);
+ const lh=rows.reduce((s,r)=>s+r.h,0),bodyH=Math.max(lh,rh,RH*9);
  const draw=img=>{const ih=img?Math.round(W*img.naturalHeight/img.naturalWidth):0;c.width=W;c.height=ih+bodyH;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,W,c.height);if(img)g.drawImage(img,0,0,W,ih);
   g.strokeStyle='#000';g.fillStyle='#000';g.lineWidth=3;g.textBaseline='middle';
   const box=(x,y,on)=>{const z=F-6;g.strokeRect(x,y-z/2,z,z);if(on){g.beginPath();g.moveTo(x+4,y-z/2+4);g.lineTo(x+z-4,y+z/2-4);g.moveTo(x+z-4,y-z/2+4);g.lineTo(x+4,y+z/2-4);g.stroke()}return z};
@@ -311,14 +317,14 @@ function drawSheet(c,t,done){const W=2400,RH=50,F=26,pad=14;let Lw=Math.round(W*
   g.beginPath();g.moveTo(Lw,ih+RH);g.lineTo(W,ih+RH);g.moveTo(W-RH*3,ih);g.lineTo(W-RH*3,ih+RH);g.stroke();g.fillText(U('TRADE # '+(t.num||'')),W-RH*1.5,ih+RH/2);
   g.textAlign='left';let y=ih+RH+pad;
   for(const [k,l] of notes){g.font='700 '+F+'px DINish, sans-serif';g.fillText(l.toUpperCase(),Lw+pad,y+F/2);y+=F+8;g.font='400 '+F+'px DINish, sans-serif';for(const ln of lines(g,U(t.notes[k]),tw)){g.fillText(ln,Lw+pad,y+F/2);y+=F+6}y+=pad}
-  // left pane rows
-  let ry=ih;for(const r of rows){g.beginPath();g.moveTo(0,ry+RH);g.lineTo(Lw,ry+RH);g.stroke();const cy=ry+RH/2;g.font='700 '+F+'px DINish, sans-serif';g.textAlign='left';
-   if(r.cells){const W8=r.cells.map(c=>c.w||1),WS=W8.reduce((p,q)=>p+q,0);let ox=0;r.cells.forEach((cell,i)=>{const cw=Lw*W8[i]/WS,x0=ox;ox+=cw;if(i){g.beginPath();g.moveTo(x0,ry);g.lineTo(x0,ry+RH);g.stroke()}let x=x0+pad;if(cell.opts){const z=box(x,cy,cell.on.length>0);g.fillText(cell.opts[0],x+z+10,cy)}else{g.fillText(cell.text,x,cy)}})}
-   else if(r.opts){let x=pad;
-    if(r.label){g.fillText(r.label,x,cy);x+=g.measureText(r.label).width+pad;g.beginPath();g.moveTo(x-pad/2,ry);g.lineTo(x-pad/2,ry+RH);g.stroke()}
-    for(const o of r.opts){const z=box(x,cy,r.on.includes(o)||r.on.includes(o.toLowerCase()));g.fillText(o,x+z+8,cy);x+=z+8+g.measureText(o).width+28}}
-   else if(r.text){g.fillText(r.text,pad,cy)}
-   ry+=RH}
+   // left pane rows (each row's height comes from its wrapped content)
+  let ry=ih;for(const r of rows){g.beginPath();g.moveTo(0,ry+r.h);g.lineTo(Lw,ry+r.h);g.stroke();g.font='700 '+F+'px DINish, sans-serif';g.textAlign='left';
+   const cyl=i=>ry+(r.h===RH?RH/2:8+LH/2+i*LH);
+   if(r.cells){let ox=0;r.cells.forEach((cell,i)=>{const cw=Lw*r.W8[i]/r.WS,x0=ox;ox+=cw;if(i){g.beginPath();g.moveTo(x0,ry);g.lineTo(x0,ry+r.h);g.stroke()}let x=x0+pad;if(cell.opts){const z=box(x,ry+RH/2,cell.on.length>0);cell.ls.forEach((l,k)=>g.fillText(l,x+z+10,cyl(k)))}else cell.ls.forEach((l,k)=>g.fillText(l,x,cyl(k)))})}
+   else if(r.opts){let x0=pad;if(r.label){g.fillText(r.label,pad,cyl(0));x0=pad+mw(r.label)+pad;g.beginPath();g.moveTo(x0-pad/2,ry);g.lineTo(x0-pad/2,ry+r.h);g.stroke()}
+    r.pl.forEach(p=>{const cy=cyl(p.line),z=box(p.x,cy,r.on.includes(p.o));g.fillText(p.o,p.x+z+8,cy)})}
+   else if(r.text){r.ls.forEach((l,k)=>g.fillText(l,pad,cyl(k)))}
+   ry+=r.h}
   done&&done(c)};
  if(t.img){const i=new Image();i.onload=()=>draw(i);i.src=t.img}else draw(null)}
 async function shareSheet(t){const c=document.createElement('canvas');drawSheet(c,t,async cv=>{cv.toBlob(async b=>{const f=new File([b],'journal-'+(t.num||t.date)+'.png',{type:'image/png'});if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f]})}catch{}}else{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=f.name;a.click()}})})}
