@@ -20,16 +20,12 @@ window.readShot=async function(url,onStep){
  const head=await ocr(w,toCanvas(img,[0,0,W*.6,H*.07],4,false),6);out.raw.header=head;
  const sym=head.match(/\b([A-Z]{1,5}[0-9]?!)/);if(sym)out.found.symbol=sym[1];
  const tf=head.match(/\b(\d+[smhDWM])\b/);
- step('Reading position...');
- const p=findPositionPill(img);
- if(p){const pt=await ocr(w,toCanvas(img,[p.x+p.runw,p.y,Math.min(W-p.x-p.runw,p.runw*8),p.h],6,false),7,'+-0123456789.,USD ');out.raw.position=pt;
-  const m=pt.replace(/\s+/g,'').match(/([+\-]?)(\d[\d,]*)(?:\.(\d\d))?U?S?D?/i);if(m){let n=m[2].replace(/,/g,'')+(m[3]?'.'+m[3]:'');if(!m[3]&&n.length>2)n=n.slice(0,-2)+'.'+n.slice(-2);out.found.pnl=(m[1]==='-'?'-':'+')+n}
-  const q=await ocr(w,toCanvas(img,[p.x,p.y,p.runw,p.h],6,false),10,'0123456789');const qm=q.match(/\d+/);if(qm)out.found.qty=qm[0]}
  step('Reading time...');
  const bot='';
  const bt=await ocr(w,toCanvas(img,[W*.55,H*.66,W*.45,H*.08],4,false),6);out.raw.bottom=bt;
  const tm=bt.match(/(\d{1,2}:\d{2}:\d{2}\s*[AP]M)\s*(UTC[+\-−]?\d+)?/i);if(tm){out.found.clock=tm[1]+(tm[2]?' '+tm[2]:'')}
- const ds=[];for(const inv of[false,true]){ds.push(await ocr(w,toCanvas(img,[W*.3,H*.655,W*.6,H*.04],5,inv),7,''))}out.raw.dateStrips=ds;
+ const ds=[];for(const inv of[false,true]){for(const bx of[[W*.545,H*.674,W*.085,H*.022],[W*.54,H*.672,W*.095,H*.026],[W*.45,H*.672,W*.25,H*.035],[W*.3,H*.655,W*.6,H*.04]]){ds.push(await ocr(w,toCanvas(img,bx,bx[2]<W*.1?10:6,inv),7,''))}}out.raw.dateStrips=ds;
  const all=ds.join('\n')+bot+'\n'+head+'\n'+bt;out.raw.all=all;
  const dm=all.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{1,2}),?\s+(20[2-3]\d)/);if(dm)out.found.dateText=dm[0];
+ const cm=all.match(/((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+20\d\d\s+\d{1,2}:\d\d\s*[AP]M)/i);if(cm)out.found.cx=cm[1];
  return out};
