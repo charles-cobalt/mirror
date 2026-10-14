@@ -84,7 +84,7 @@ const open=()=>new Promise((res,rej)=>{const r=indexedDB.open(DB,1);r.onupgraden
 const kvget=k=>new Promise(r=>{const q=db.transaction(ST).objectStore(ST).get(k);q.onsuccess=()=>r(q.result);q.onerror=()=>r(undefined)});
 const kvset=(k,v)=>new Promise(r=>{const t=db.transaction(ST,'readwrite');t.objectStore(ST).put(v,k);t.oncomplete=r});
 
-// Field layout copied from the sheet screenshot. Labels/options are editable in Settings.
+// Field layout copied from the sheet screenshot. Labels and options are editable in Settings.
 const YN=['Yes','No'];
 const DEFAULT_CFG={v:3,groups:[
  {id:'sleep',label:'Sleep state',q:'Did you get more than 5 hours of sleep?',opts:YN,multi:false},
@@ -92,8 +92,8 @@ const DEFAULT_CFG={v:3,groups:[
  {id:'balance',label:'Balance state',q:'Did you meditate today?',opts:YN,multi:false},
  {id:'focus',label:'Focus state',q:'Were you on any social media today?',opts:YN,multi:false},
  {id:'dd',label:'Drawdown state',q:'Drawdown state',opts:['Green','Yellow','Orange','Red'],multi:false,colored:true},
- {id:'catalyst',label:'Catalyst state',q:'Is there any news or catalyst within 30 minutes before or after the taken trade?',opts:YN,multi:false},
- {id:'pad',label:'Price action delivery factor',q:'Is it liquidity, catalyst news, or market that is driving the price action today?',opts:['Liquidity','Catalyst news','Market','Random'],multi:true}],
+ {id:'catalyst',label:'Catalyst state',q:'Was there any news or catalyst within 30 minutes before or after the trade you took?',opts:YN,multi:false},
+ {id:'pad',label:'Price action delivery factor',q:'Which is driving the price action today: liquidity, catalyst news, the market, or random?',opts:['Liquidity','Catalyst news','Market','Random'],multi:true}],
  extra:[{id:'amd',label:'AMD PO3',opts:['A','M','D'],multi:false}],
  notes:[['initial','Initial notes'],['plan','Setup plan'],['post','Post notes'],['deviation','Setup deviation'],['mistakes','Mistakes'],['lessons','Lessons']]};
 let trades=[],cfg=DEFAULT_CFG,view={name:'list'},nid=1;
@@ -126,13 +126,13 @@ function calcRR(t){const r={msgs:[]};const d=t.dir==='Long'?1:t.dir==='Short'?-1
   else{const tot=sizes.reduce((a,b)=>a+b,0);const pts=ex.reduce((a,x,i)=>a+sizes[i]*(num(x.p)-e)*d,0);r.gross=pts/(tot*risk);r.tot=tot;r.points=pts;
    const f=num(t.fees),pp=num(t.ppp);if(!isNaN(pp)&&pp>0){const gd=pts*pp;r.dollars=gd;const net=gd-(isNaN(f)?0:f);r.net=net/(tot*risk*pp);r.netd=net}
    else if(!isNaN(f)&&f>0)r.msgs.push('Add $ per point to include fees.')}}
- else r.msgs.push('Add an exit price to get the actual R.');
+ else r.msgs.push('Add an exit price to get the Actual R:R.');
  return r}
 const fr=(x,p=2)=>(x>0?'+':'')+x.toFixed(p);
 function rrHTML(t){const r=calcRR(t);let h='';
  if(r.planned!=null)h+=`<div>Planned R:R <b>1 : ${r.planned.toFixed(2)}</b></div>`;
  if(r.gross!=null){h+=`<div>Actual R:R <b>${fr(r.gross)}R</b> <span class="mu">(initial stop, before fees)</span></div>`;if(r.net!=null)h+=`<div>Actual R:R after fees <b>${fr(r.net)}R</b> <span class="mu">(${r.netd>=0?'+':'-'}$${Math.abs(r.netd).toFixed(2)})</span></div>`;
-  h+=`<div class="mu">${r.gross>0?'Looks like a winner by the numbers; you still choose the Result above.':r.gross<0?'Looks like a loser by the numbers; you still choose the Result above.':'Break even by the numbers.'}</div>`}
+  h+=`<div class="mu">${r.gross>0?'This looks like a win by the numbers, but you still choose the Result above.':r.gross<0?'This looks like a loss by the numbers, but you still choose the Result above.':'This is break even by the numbers.'}</div>`}
  h+=r.msgs.map(m=>`<div class="mu" style="color:var(--y)">${esc(m)}</div>`).join('');return h||'<div class="mu">Fill in the inputs to calculate.</div>'}
 function syncRR(){const t=view.t;readForm();const b=document.getElementById('rrbox');if(b)b.innerHTML=rrHTML(t);const r=calcRR(t);
  const tg=document.getElementById('target'),ac=document.getElementById('actual');
@@ -161,7 +161,7 @@ function rEdit(a){const t=view.t;if(!t.exits)t.exits=[{p:'',s:''}];
 <div id="scan" class="mu" style="margin-top:8px">${esc(view.scan||'')}</div>
 <div class="row"><div><label class="f">Ticker ${fl(t,'sym')}</label><input type="text" id="sym" value="${esc(t.sym)}"></div><div><label class="f">Time of trade (your fill time)</label><div style="display:flex;flex-direction:column;gap:6px"><input type="time" id="ttime" style="min-width:0" value="${esc(t.ttime)}"><select id="ttz">${[['America/New_York','Eastern'],['America/Chicago','Central'],['America/Denver','Mountain'],['America/Los_Angeles','Pacific'],['UTC','UTC']].map(([v,l])=>`<option value="${v}" ${(t.ttz||'America/New_York')===v?'selected':''}>${l}</option>`).join('')}</select></div></div></div>
 <div class="row"><div><label class="f">Chart clock at capture ${fl(t,'ctime')}</label><input type="text" id="ctime" value="${esc(t.ctime)}"></div><div><label class="f">Chart cursor date/time ${fl(t,'cx')}</label><input type="text" id="cx" value="${esc(t.cx)}"></div></div>
-<div class="mu" style="margin-top:6px">Chart clock and cursor come from the screenshot. Time of trade is not on a chart screenshot: type it or leave blank. Entry and exit prices are below.</div>
+<div class="mu" style="margin-top:6px">The chart clock and cursor come from the screenshot. The time of a trade is not on a chart screenshot, so type it or leave it blank. Entry and exit prices are below.</div>
 <h2>Risk and exits</h2><div class="card">
 <label class="f" style="margin-top:0">Direction</label><div class="chips"><button type="button" class="chip ${t.dir==='Long'?'on':''}" data-dir="Long">Long</button><button type="button" class="chip ${t.dir==='Short'?'on':''}" data-dir="Short">Short</button></div>
 <div class="row"><div><label class="f">Entry price</label><input type="text" inputmode="decimal" id="entry" value="${esc(t.entry)}"></div><div><label class="f">Initial stop price</label><input type="text" inputmode="decimal" id="stop" value="${esc(t.stop)}"></div></div>
@@ -247,11 +247,11 @@ document.addEventListener('input',e=>{if(view.name==='edit'&&e.target.closest('#
 document.getElementById('file').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const big=URL.createObjectURL(f);view.t.img=await shrink(f,1400);view.scan='Reading screenshot...';render();const set=m=>{view.scan=m;const s=document.getElementById('scan');if(s)s.textContent=m};
  try{const r=await readShot(big,set),t=view.t,fd=r.found;readForm();t.auto={};
   if(fd.symbol){t.sym=fd.symbol;t.auto.sym=1}if(fd.cx){t.cx=fd.cx;t.auto.cx=1}if(fd.clock){t.ctime=fd.clock;t.auto.ctime=1}
-  const n=Object.keys(fd).length;view.scan=n?'Filled what could be read. Yellow fields came from the screenshot: confirm them. Time of trade, entry and exit are not on a chart screenshot: enter them yourself. Everything else (date, grade, states, notes) is yours to enter.':'Could not read trade details from this screenshot. Fill in manually.'}
- catch(err){view.scan='Could not run the screenshot reader (needs internet the first time). Fill in manually.'}render()};
-document.getElementById('imp').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!Array.isArray(j.trades))throw 0;if(!confirm('Import '+j.trades.length+' trades? Matching ones are overwritten, others kept.'))return;const m=new Map(trades.map(t=>[t.id,t]));j.trades.forEach(t=>m.set(t.id,t));trades=[...m.values()];await save();view={name:'list'};render()}catch{alert('That file is not a journal backup.')}e.target.value=''};
+  const n=Object.keys(fd).length;view.scan=n?'Filled what could be read. Yellow fields came from the screenshot. Please confirm them. Time of trade, entry and exit are not on a chart screenshot: enter them yourself. Everything else (date, grade, states, notes) is yours to enter.':'Could not read trade details from this screenshot. Fill in the fields manually.'}
+ catch(err){view.scan='Could not run the screenshot reader (needs internet the first time). Fill in the fields manually.'}render()};
+document.getElementById('imp').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!Array.isArray(j.trades))throw 0;if(!confirm('Import '+j.trades.length+' trades? Matching trades are overwritten and the others are kept.'))return;const m=new Map(trades.map(t=>[t.id,t]));j.trades.forEach(t=>m.set(t.id,t));trades=[...m.values()];await save();view={name:'list'};render()}catch{alert('That file is not a journal backup.')}e.target.value=''};
 
-(async()=>{db=await open();trades=(await kvget('trades'))||[];cfg=(await kvget('cfg'));if(!cfg||cfg.v!==3)cfg=DEFAULT_CFG;
+(async()=>{db=await open();trades=(await kvget('trades'))||[];cfg=(await kvget('cfg'));if(!cfg||cfg.v!==3)cfg=DEFAULT_CFG;else{const q={catalyst:[DEFAULT_CFG.groups[5].q,'Is there any news or catalyst within 30 minutes before or after the taken trade?'],pad:[DEFAULT_CFG.groups[6].q,'Is it liquidity, catalyst news, or market that is driving the price action today?']};cfg.groups.forEach(g=>{if(q[g.id]&&g.q===q[g.id][1])g.q=q[g.id][0]})}
  if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
  if(location.hash==='#new'){view={name:'edit',t:blank(),isNew:true}}
  if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');render()})();
