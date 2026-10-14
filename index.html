@@ -99,6 +99,7 @@ const DEFAULT_CFG={v:3,groups:[
  {id:'psych',label:'Psychological state',q:'Are there any psychological disturbances in your life today?',opts:YN,multi:false},
  {id:'balance',label:'Balance state',q:'Did you meditate today?',opts:YN,multi:false},
  {id:'focus',label:'Focus state',q:'Were you on any social media today?',opts:YN,multi:false},
+ {id:'dev',label:'Plan Deviation State',q:'Did you deviate from your initial trade plan?',opts:YN,multi:false},
  {id:'dd',label:'Drawdown state',q:'Drawdown state',opts:['Green','Yellow','Orange','Red'],multi:false,colored:true},
  {id:'catalyst',label:'Catalyst state',q:'Was there any news or catalyst within 30 minutes before or after the trade you took?',opts:YN,multi:false},
  {id:'pad',label:'Price action delivery factor',q:'Which is driving the price action today: liquidity, catalyst news, the market, or random?',opts:['Liquidity','Catalyst news','Market','Random'],multi:true}],
@@ -257,7 +258,7 @@ function drawSheet(c,t,done){const W=2400,Lw=Math.round(W*0.315),RH=50,F=26,pad=
  rows.push({cells:[{opts:['PROFIT'],on:t.result==='profit'?['PROFIT']:[]},{opts:['LOSS'],on:t.result==='loss'?['LOSS']:[]},{text:'ACC #  '+(t.acc||'')}]});
  rows.push({cells:[{text:'GRADE: '+(t.grade||'')},{text:'TARGET R:R: '+(t.target||'')},{text:'ACTUAL R:R: '+(t.actual||'')}]});
  rows.push({label:'AMD PO3:',opts:['A','M','D'],on:pick('amd')});
- for(const g of cfg.groups){const short={sleep:'SLEEP >5 HRS',psych:'PSYCH DISTURBANCE',balance:'MEDITATED',focus:'SOCIAL MEDIA',dd:'DD STATE:',catalyst:'NEWS +-30 MIN',pad:'PA D. FACTOR:'}[g.id]||g.label.toUpperCase();
+ for(const g of cfg.groups){const short={sleep:'SLEEP >5 HRS',psych:'PSYCH DISTURBANCE',balance:'MEDITATED',focus:'SOCIAL MEDIA',dd:'DD STATE:',catalyst:'NEWS +-30 MIN',pad:'PA D. FACTOR:',dev:'PLAN DEVIATION'}[g.id]||g.label.toUpperCase();
   rows.push({label:short,opts:g.opts.map(o=>o.toUpperCase()),on:pick(g.id).map(x=>x.toUpperCase())})}
  if(t.dir||t.entry||t.stop)rows.push({text:[t.dir&&t.dir.toUpperCase(),t.entry&&'ENTRY '+t.entry,t.stop&&'STOP '+t.stop].filter(Boolean).join('   ')});
  if(etTime(t)||t.cx||t.ctime)rows.push({text:[etTime(t)&&'TIME OF TRADE '+etTime(t),t.cx&&'CHART '+t.cx,t.ctime&&'CLOCK '+t.ctime].filter(Boolean).join('   ')});
@@ -315,7 +316,7 @@ document.getElementById('file').onchange=async e=>{const f=e.target.files[0];e.t
  catch(err){view.scan='Could not run the screenshot reader (needs internet the first time). Fill in the fields manually.'}render()};
 document.getElementById('imp').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!Array.isArray(j.trades))throw 0;if(!confirm('Import '+j.trades.length+' trades? Matching trades are overwritten and the others are kept.'))return;const m=new Map(trades.map(t=>[t.id,t]));j.trades.forEach(t=>m.set(t.id,t));trades=[...m.values()];await save();view={name:'list'};render()}catch{alert('That file is not a journal backup.')}e.target.value=''};
 
-(async()=>{db=await open();trades=(await kvget('trades'))||[];cfg=(await kvget('cfg'));if(!cfg||cfg.v!==3)cfg=DEFAULT_CFG;else{const q={catalyst:[DEFAULT_CFG.groups[5].q,'Is there any news or catalyst within 30 minutes before or after the taken trade?'],pad:[DEFAULT_CFG.groups[6].q,'Is it liquidity, catalyst news, or market that is driving the price action today?']};cfg.groups.forEach(g=>{if(q[g.id]&&g.q===q[g.id][1])g.q=q[g.id][0]})}
+(async()=>{db=await open();trades=(await kvget('trades'))||[];cfg=(await kvget('cfg'));if(!cfg||cfg.v!==3)cfg=DEFAULT_CFG;else{const q={catalyst:[DEFAULT_CFG.groups.find(g=>g.id==='catalyst').q,'Is there any news or catalyst within 30 minutes before or after the taken trade?'],pad:[DEFAULT_CFG.groups.find(g=>g.id==='pad').q,'Is it liquidity, catalyst news, or market that is driving the price action today?']};cfg.groups.forEach(g=>{if(q[g.id]&&g.q===q[g.id][1])g.q=q[g.id][0]});if(!cfg.groups.some(g=>g.id==='dev')){const fi=cfg.groups.findIndex(g=>g.id==='focus');cfg.groups.splice(fi>=0?fi+1:cfg.groups.length,0,JSON.parse(JSON.stringify(DEFAULT_CFG.groups.find(g=>g.id==='dev'))))}}
  if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
  if(location.hash==='#new'){view={name:'edit',t:blank(),isNew:true}}
  if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');render()})();
