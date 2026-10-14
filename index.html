@@ -294,12 +294,12 @@ function drawSheet(c,t,done){const W=2400,RH=50,F=26,pad=14;let Lw=Math.round(W*
  for(const g of cfg.groups){const short={sleep:'SLEEP >5 HRS',psych:'PSYCH DISTURBANCE',balance:'MEDITATED',focus:'SOCIAL MEDIA',dd:'DD STATE:',catalyst:'NEWS +-30 MIN',pad:'PA D. FACTOR:',dev:'PLAN DEVIATION'}[g.id]||g.label.toUpperCase();
   rows.push({label:short,opts:g.opts.map(o=>o.toUpperCase()),on:pick(g.id).map(x=>x.toUpperCase())})}
  if(t.dir||t.entry||t.stop)rows.push({text:[t.dir&&t.dir.toUpperCase(),t.entry&&'ENTRY '+t.entry,t.stop&&'STOP '+t.stop].filter(Boolean).join('   ')});
- if(etTime(t)||t.cx||t.ctime)rows.push({text:[etTime(t)&&'TIME OF TRADE '+etTime(t),t.cx&&'CHART '+t.cx,t.ctime&&'CLOCK '+t.ctime].filter(Boolean).join('   ')});
+ rows.push({text:'TIME OF TRADE  '+(etTime(t)||'')});rows.push({text:'CHART CLOCK AT CAPTURE  '+(t.ctime||'')});rows.push({text:'CHART CURSOR DATE/TIME  '+(t.cx||'')});
  for(const r of rows){if(r.label)r.label=U(r.label);if(r.text)r.text=U(r.text);if(r.opts)r.opts=r.opts.map(U);if(r.on)r.on=r.on.map(U);if(r.cells)for(const c of r.cells){if(c.text)c.text=U(c.text);if(c.opts)c.opts=c.opts.map(U);if(c.on)c.on=c.on.map(U)}}
  const g0=document.createElement('canvas').getContext('2d');g0.font='700 '+F+'px DINish, sans-serif';
  const zb=F-6,mw=s=>g0.measureText(s).width,HDR='INITIAL NOTES | SETUP PLAN | POST NOTES | SETUP DEVIATION | MISTAKES | LESSONS';
  let need=Lw;for(const r of rows){if(r.cells){const W8=r.cells.map(c=>c.w||1),WS=W8.reduce((p,q)=>p+q,0);r.cells.forEach((cl,i)=>{const n=cl.opts?zb+10+mw(cl.opts[0])+2*pad:mw(cl.text)+2*pad;need=Math.max(need,n*WS/W8[i])})}else if(r.opts){need=Math.max(need,(r.label?mw(r.label)+pad:0)+r.opts.reduce((a,o)=>a+mw(o)+zb+36,0)+pad)}else if(r.text)need=Math.max(need,mw(r.text)+2*pad)}
- Lw=Math.ceil(Math.min(need,W*0.42,W-3*RH-mw(HDR)-2*pad));
+ Lw=Math.ceil(Math.min(need,W*0.315,W-3*RH-mw(HDR)-2*pad));
  const LH=F+12,hOf=n=>n<=1?RH:n*LH+16;
  const wrapTxt=(s,maxw)=>{const out=[];for(const para of String(s).split('\n')){let line='';for(let w of para.split(/\s+/).filter(Boolean)){while(mw(w)>maxw){let k=w.length;while(k>1&&mw(w.slice(0,k))>maxw)k--;if(line){out.push(line);line=''}out.push(w.slice(0,k));w=w.slice(k)}const t2=line?line+' '+w:w;if(mw(t2)>maxw&&line){out.push(line);line=w}else line=t2}out.push(line)}return out};
  for(const r of rows){
