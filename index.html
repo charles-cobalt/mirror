@@ -94,7 +94,7 @@ function rEdit(a){const t=view.t;
 <h2>Check-in</h2><div class="card">${cfg.groups.map(g=>`<div style="margin-bottom:14px"><div style="font-size:15px;margin-bottom:6px">${esc(g.q)}</div>${chips(g,t)}</div>`).join('')}</div><h2>Trade</h2><label class="f">Chart screenshot</label>${t.img?`<img class="shot" src="${t.img}">`:''}<button class="btn sec" id="pick" style="margin-top:8px;width:100%">${t.img?'Replace screenshot':'Add screenshot from Photos'}</button>
 <div class="row"><div><label class="f">Date</label><input type="date" id="date" value="${esc(t.date)}"></div><div><label class="f">Trade #</label><input type="text" id="num" value="${esc(t.num)}"></div></div>
 <div id="scan" class="mu" style="margin-top:8px">${esc(view.scan||'')}</div>
-<div class="row"><div><label class="f">Symbol ${fl(t,'sym')}</label><input type="text" id="sym" value="${esc(t.sym)}"></div><div><label class="f">P&L (USD) ${fl(t,'pnl')}</label><input type="text" id="pnl" value="${esc(t.pnl)}"></div></div>
+<div class="row"><div><label class="f">Symbol ${fl(t,'sym')}</label><input type="text" id="sym" value="${esc(t.sym)}"></div><div><label class="f">Open P&L, unrealized (USD) ${fl(t,'pnl')}</label><input type="text" id="pnl" value="${esc(t.pnl)}"></div></div>
 <div class="row"><div><label class="f">Qty ${fl(t,'qty')}</label><input type="text" id="qty" value="${esc(t.qty)}"></div><div><label class="f">Chart clock ${fl(t,'ctime')}</label><input type="text" id="ctime" value="${esc(t.ctime)}"></div></div>
 <label class="f">Result ${fl(t,'result')}</label><div class="chips"><button type="button" class="chip pl ${t.result==='profit'?'on':''}" data-res="profit">Profit</button><button type="button" class="chip ls ${t.result==='loss'?'on':''}" data-res="loss">Loss</button></div>
 <div class="row"><div><label class="f">ACC #</label><input type="text" id="acc" value="${esc(t.acc)}"></div><div><label class="f">Setup grade</label><input type="text" id="grade" value="${esc(t.grade)}"></div></div>
@@ -104,7 +104,7 @@ ${cfg.notes.map(([k,l])=>`<label class="f">${l}</label><textarea data-n="${k}">$
 ${view.isNew?'':'<button class="btn del" id="del" style="width:100%;margin-top:24px">Delete trade</button>'}`}
 function rDetail(a){const t=view.t;
  a.innerHTML=`<div class="top"><button class="btn sec" id="back">Back</button><b>${t.num?'#'+esc(t.num):esc(t.date)}</b><button class="btn" id="edit">Edit</button></div><canvas id="sheet" style="width:100%;border-radius:10px;display:block"></canvas><div class="row" style="margin:10px 0"><button class="btn" id="shareimg">Save / share as image</button></div><h2>Details</h2>${t.img?`<img class="shot" src="${t.img}">`:''}
-<div class="card" style="margin-top:12px">${pill(t.result)} <span class="mu">${esc(t.date)}${t.acc?' · ACC '+esc(t.acc):''}</span><div style="margin-top:8px">${t.sym?esc(t.sym)+' ':''}${t.pnl?'· P&L <b>'+esc(t.pnl)+'</b> ':''}${t.qty?'· Qty '+esc(t.qty)+' ':''}${t.ctime?'· '+esc(t.ctime):''}</div><div style="margin-top:8px">${t.grade?'Grade <b>'+esc(t.grade)+'</b> ':''}${t.target?'· Target <b>'+esc(t.target)+'</b> ':''}${t.actual?'· Actual <b>'+esc(t.actual)+'</b>':''}</div></div>
+<div class="card" style="margin-top:12px">${pill(t.result)} <span class="mu">${esc(t.date)}${t.acc?' · ACC '+esc(t.acc):''}</span><div style="margin-top:8px">${t.sym?esc(t.sym)+' ':''}${t.pnl?'· open P&L <b>'+esc(t.pnl)+'</b> ':''}${t.qty?'· Qty '+esc(t.qty)+' ':''}${t.ctime?'· '+esc(t.ctime):''}</div><div style="margin-top:8px">${t.grade?'Grade <b>'+esc(t.grade)+'</b> ':''}${t.target?'· Target <b>'+esc(t.target)+'</b> ':''}${t.actual?'· Actual <b>'+esc(t.actual)+'</b>':''}</div></div>
 ${[...cfg.groups,...cfg.extra].filter(g=>(t.pick[g.id]||[]).length).map(g=>`<div class="card"><div class="mu">${esc(g.label)}${g.q&&g.q!==g.label?' - '+esc(g.q):''}</div>${t.pick[g.id].map(o=>`<span class="pill p-none" style="margin:4px 4px 0 0;font-size:14px">${esc(o)}</span>`).join('')}</div>`).join('')}
 ${cfg.notes.filter(([k])=>t.notes[k]).map(([k,l])=>`<div class="card"><div class="mu">${l}</div><div class="note">${esc(t.notes[k])}</div></div>`).join('')}`}
 
@@ -112,9 +112,9 @@ ${cfg.notes.filter(([k])=>t.notes[k]).map(([k,l])=>`<div class="card"><div class
 // Composed entry: chart on top, your answers and notes below (same layout idea as your sheet)
 function wrap(g,text,x,y,mw,lh){const words=String(text||'').split(/\s+/);let line='',n=0;for(const w of words){const t=line?line+' '+w:w;if(g.measureText(t).width>mw&&line){g.fillText(line,x,y+n*lh);line=w;n++}else line=t}g.fillText(line,x,y+n*lh);return n+1}
 function drawSheet(c,t,done){const W=1200,pad=24;const rows=[];
- rows.push(['RESULT',(t.result==='profit'?'PROFIT':t.result==='loss'?'LOSS':'OPEN')+(t.pnl?'   '+t.pnl+' USD':'')+(t.sym?'   '+t.sym:'')]);
+ rows.push(['RESULT',(t.result==='profit'?'PROFIT':t.result==='loss'?'LOSS':'OPEN')+(t.pnl?'   open P&L '+t.pnl+' USD (unrealized)':'')+(t.sym?'   '+t.sym:'')]);
  rows.push(['DATE / ACC # / TRADE #',[t.date,t.acc&&'ACC '+t.acc,t.num&&'#'+t.num,t.ctime].filter(Boolean).join('   ')]);
- rows.push(['SETUP GRADE / TARGET R:R / ACTUAL',[t.grade&&'Grade '+t.grade,t.target&&'Target '+t.target,t.actual&&'Actual '+t.actual].filter(Boolean).join('   ')||'-']);
+ rows.push(['GRADE / TARGET R:R / ACTUAL',[t.grade&&'Grade '+t.grade,t.target&&'Target '+t.target,t.actual&&'Actual '+t.actual].filter(Boolean).join('   ')||'-']);
  rows.push(['AMD PO3',(t.pick.amd||[]).join(', ')||'-']);
  for(const g of cfg.groups)rows.push([g.label.toUpperCase(),(t.pick[g.id]||[]).join(', ')||'-']);
  const notes=cfg.notes.filter(([k])=>t.notes[k]);
@@ -152,8 +152,8 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button,[da
 });
 document.getElementById('file').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const big=URL.createObjectURL(f);view.t.img=await shrink(f,1400);view.scan='Reading screenshot...';render();const set=m=>{view.scan=m;const s=document.getElementById('scan');if(s)s.textContent=m};
  try{const r=await readShot(big,set),t=view.t,fd=r.found;readForm();t.auto={};
-  if(fd.symbol){t.sym=fd.symbol;t.auto.sym=1}if(fd.pnl){t.pnl=fd.pnl;t.auto.pnl=1;t.result=fd.pnl[0]==='-'?'loss':'profit';t.auto.result=1}if(fd.clock){t.ctime=fd.clock;t.auto.ctime=1}
-  const n=Object.keys(fd).length;view.scan=n?'Filled what could be read. Yellow fields came from the screenshot: confirm them. P&L is the open-position value at capture time, so Result may change when the trade closes. Everything else (date, grade, states, notes) is yours to enter.':'Could not read trade details from this screenshot. Fill in manually.'}
+  if(fd.symbol){t.sym=fd.symbol;t.auto.sym=1}if(fd.pnl){t.pnl=fd.pnl;t.auto.pnl=1}if(fd.clock){t.ctime=fd.clock;t.auto.ctime=1}
+  const n=Object.keys(fd).length;view.scan=n?'Filled what could be read. Yellow fields came from the screenshot: confirm them. The P&L is the unrealized open-position value at capture time, not a final result: pick Profit or Loss yourself. Everything else (date, grade, states, notes) is yours to enter.':'Could not read trade details from this screenshot. Fill in manually.'}
  catch(err){view.scan='Could not run the screenshot reader (needs internet the first time). Fill in manually.'}render()};
 document.getElementById('imp').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!Array.isArray(j.trades))throw 0;if(!confirm('Import '+j.trades.length+' trades? Matching ones are overwritten, others kept.'))return;const m=new Map(trades.map(t=>[t.id,t]));j.trades.forEach(t=>m.set(t.id,t));trades=[...m.values()];await save();view={name:'list'};render()}catch{alert('That file is not a journal backup.')}e.target.value=''};
 
