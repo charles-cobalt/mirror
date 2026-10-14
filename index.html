@@ -170,7 +170,9 @@ function rrHTML(t){const r=calcRR(t);let h='';
 function syncRR(){const t=view.t;readForm();const b=document.getElementById('rrbox');if(b)b.innerHTML=rrHTML(t);const r=calcRR(t);
  const tg=document.getElementById('target'),ac=document.getElementById('actual');
  if(r.planned!=null){t.target='1:'+r.planned.toFixed(2);if(tg)tg.value=t.target}else if(/^1:\d/.test(t.target||'')){t.target='';if(tg)tg.value=''}
- if(r.gross!=null){t.actual=fr(r.net!=null?r.net:r.gross)+'R';if(ac)ac.value=t.actual}else if(/R$/.test(t.actual||'')&&/^[-+]\d/.test(t.actual)){t.actual='';if(ac)ac.value=''}}
+ if(r.gross!=null){t.actual=fr(r.net!=null?r.net:r.gross)+'R';if(ac)ac.value=t.actual}else if(/R$/.test(t.actual||'')&&/^[-+]\d/.test(t.actual)){t.actual='';if(ac)ac.value=''}
+ const rv=r.net!=null?r.net:r.gross;
+ if(!t.resMan&&(!t.result||t.resAuto)){const nr=rv==null?'':Math.round(rv*100)/100>0?'profit':Math.round(rv*100)/100<0?'loss':'be';if(nr!==(t.result||'')){t.result=nr;t.resAuto=!!nr;document.querySelectorAll('[data-res]').forEach(c=>c.classList.toggle('on',c.dataset.res===nr))}}}
 
 // ---------- views ----------
 const icons={list:'<g transform="translate(0,0.3)"><path d="M64 256Q256 70 448 256Q256 106 64 256Z" fill="currentColor"/><path d="M194 256A62 62 0 0 1 318 256" stroke="currentColor" stroke-width="20"/><path d="M230 256A26 26 0 0 1 282 256Z" fill="currentColor"/></g><g transform="translate(0,-0.3) translate(0,256) scale(1,-1) translate(0,-256)"><path d="M64 256Q256 70 448 256Q256 106 64 256Z" fill="currentColor"/><path d="M194 256A62 62 0 0 1 318 256" stroke="currentColor" stroke-width="20"/><path d="M230 256A26 26 0 0 1 282 256Z" fill="currentColor"/></g>',stats:'<path d="M64 256.3Q256 70 448 256.3Q256 106 64 256.3Z" fill="currentColor"/><path d="M64 255.7Q256 442 448 255.7Q256 406 64 255.7Z" fill="currentColor"/>',set:'<circle cx="256" cy="256" r="62" stroke="currentColor" stroke-width="20"/><circle cx="256" cy="256" r="26" fill="currentColor"/>'};const iconVB={list:'32 32 448 448',stats:'32 32 448 448',set:'110 110 292 292'};
@@ -392,7 +394,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button,[da
  else if(b.id==='rm1'){readForm();if(confirm('Remove the entry screenshot from this trade?')){view.t.img='';if(view.scans)delete view.scans.entry;render()}}
  else if(b.id==='rm2'){readForm();if(confirm('Remove the exit screenshot from this trade?')){view.t.img2='';if(view.scans)delete view.scans.exit;render()}}
  else if(b.id==='pick2'){readForm();view.role='exit';document.getElementById('file').click()}
- else if(d.res){readForm();view.t.result=view.t.result===d.res?'':d.res;render()}
+ else if(d.res){readForm();view.t.result=view.t.result===d.res?'':d.res;view.t.resMan=true;view.t.resAuto=false;render()}
  else if(d.g){readForm();const t=view.t,g=[...cfg.groups,...cfg.extra].find(x=>x.id===d.g),cur=t.pick[d.g]||[];t.pick[d.g]=cur.includes(d.o)?cur.filter(x=>x!==d.o):(g.multi?[...cur,d.o]:[d.o]);const y=scrollY;render();scrollTo(0,y)}
  else if(b.id==='exp'){const blob=new Blob([JSON.stringify({copyright:'\u00a9 Margin Freeman 2026  |  MIRR\u2022R',trades,cfg},null,1)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='trade-journal-'+today()+'.json';a.click()}
  else if(b.id==='impb'){document.getElementById('imp').click()}
