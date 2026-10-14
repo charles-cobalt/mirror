@@ -19,11 +19,14 @@ async function start(){
  if(!navigator.onLine&&!S.st.uid)return;
  try{const k=await sdk();k.a.onAuthStateChanged(k.auth,async u=>{S.user=u;S.ver=!!(u&&u.emailVerified);rerender();if(u&&S.ver)await linkAndSync(u)})}catch(e){S.sdk=null}
 }
+const FRESH=()=>({uid:'',hashes:{},base:{},cfgHash:'',cfgBase:'',lastPull:0,lastCfgU:0,lastSync:0});
+async function stash(o){await kvset('own:'+o,{trades:JSON.parse(JSON.stringify(trades)),cfg:JSON.parse(JSON.stringify(cfg)),st:S.st})}
+async function restore(o){const v=await kvget('own:'+o);trades=v&&v.trades?v.trades:[];if(v&&v.cfg)cfg=v.cfg;S.st=v&&v.st?v.st:FRESH();await kvset('trades',trades);await kvset('cfg',cfg);await saveSt()}
 async function linkAndSync(u){
- if(S.st.uid&&S.st.uid!==u.uid){ // this device holds another account's journal
-  if(!confirm('This phone holds the journal of a different account. Replace it with the journal of '+(u.email||'this account')+'? Trades on this phone that were never uploaded will be removed from this phone. Export a backup first if you need them.')){await S.sdk.a.signOut(S.sdk.auth);return}
-  trades=[];await save();S.st={uid:'',hashes:{},base:{},cfgHash:'',cfgBase:'',lastPull:0,lastCfgU:0,lastSync:0};
+ if(S.st.uid&&S.st.uid!==u.uid){ // this phone holds another account's journal: keep it in its own store, never delete or upload it
+  await stash(S.st.uid);await restore(u.uid);S.st.uid=u.uid;S.st.email=u.email||'';await saveSt();location.reload();return
  }
+ if(!S.st.uid)await kvset('own:anon',{trades:JSON.parse(JSON.stringify(trades)),cfg:JSON.parse(JSON.stringify(cfg)),st:null});
  if(!S.st.uid){S.st.uid=u.uid;S.st.email=u.email||'';S.st.base={};trades.forEach(t=>S.st.base[t.id]=th(t));S.st.cfgBase=ch();await saveSt()}
  await sync(false)
 }
@@ -78,7 +81,7 @@ window.JSYNC={
   const m=S.msg?`<p class="mu" style="margin-top:10px;${S.err?'color:var(--y)':''}">${esc2(S.msg)}</p>`:'';
   if(!S.ready)return '';
   const np=trades.filter(t=>!S.st.hashes[t.id]).length;
-  if(S.user&&S.ver)return `<div class="card"><b>Account</b><p class="mu">Signed in as ${esc2(S.user.email)}. Your journal syncs to this private account and is visible only when you sign in.</p><div class="row"><button class="btn" data-sy="sync">Sync now</button><button class="btn sec" data-sy="out">Sign out</button></div><div class="row" ${row}><button class="btn sec" data-sy="all">Upload this device's journal</button></div><p class="mu" style="margin-top:10px">${np?np+(np===1?' trade on this phone is':' trades on this phone are')+' not uploaded yet. They stay local until you upload them or edit them.':'All trades on this phone are uploaded.'} Signing out keeps the journal on this phone.</p>${m}</div>`;
+  if(S.user&&S.ver)return `<div class="card"><b>Account</b><p class="mu">Signed in as ${esc2(S.user.email)}. Your journal syncs to this private account and shows on this phone only while you are signed in.</p><div class="row"><button class="btn" data-sy="sync">Sync now</button><button class="btn sec" data-sy="out">Sign out</button></div><div class="row" ${row}><button class="btn sec" data-sy="all">Upload this device's journal</button></div><p class="mu" style="margin-top:10px">${np?np+(np===1?' trade on this phone is':' trades on this phone are')+' not uploaded yet. They stay local until you upload them or edit them.':'All trades on this phone are uploaded.'} Signing out hides this account's journal on this phone; it comes back when you sign in again.</p>${m}</div>`;
   if(S.user)return `<div class="card"><b>Account</b><p class="mu">Check ${esc2(S.user.email)} for the verification email from this journal, open its link, then tap the button below. Nothing syncs until your email is verified.</p><div class="row"><button class="btn" data-sy="chk">I verified</button><button class="btn sec" data-sy="resend">Resend email</button></div><div class="row" ${row}><button class="btn sec" data-sy="out">Sign out</button></div>${m}</div>`;
   return `<div class="card"><b>Account</b><p class="mu">Optional. Sign in to keep a private copy of your journal that syncs across your devices. Without an account, everything stays on this phone as before.</p><label class="f">Email</label><input type="email" id="syem" autocomplete="email" autocapitalize="off" spellcheck="false" value="${esc2(S.em||'')}"><label class="f">Password</label><input type="password" id="sypw" autocomplete="current-password"><div class="row" ${row}><button class="btn" data-sy="in">Sign in</button><button class="btn sec" data-sy="new">Create account</button></div><div class="row" ${row}><button class="btn sec" data-sy="reset">Forgot password</button></div>${m}</div>`},
  init(){start()}};
@@ -94,7 +97,7 @@ document.addEventListener('click',async e=>{
   else if(a==='reset'){S.em=E;if(!S.em)return setMsg('Enter your email first.',1);await k.a.sendPasswordResetEmail(k.auth,S.em);setMsg('If that email has an account, a reset link was sent.')}
   else if(a==='resend'){await k.a.sendEmailVerification(k.auth.currentUser);setMsg('Verification email sent again.')}
   else if(a==='chk'){await k.auth.currentUser.reload();S.user=k.auth.currentUser;S.ver=!!S.user.emailVerified;if(S.ver){await S.user.getIdToken(true);await linkAndSync(S.user)}else setMsg('Not verified yet. Open the link in the email first.',1)}
-  else if(a==='out'){await k.a.signOut(k.auth);S.user=null;S.ver=false;setMsg('Signed out. Your journal is still on this phone.')}
+  else if(a==='out'){const o=S.st.uid;if(o){await stash(o);await k.a.signOut(k.auth);S.user=null;S.ver=false;await restore('anon');location.reload();return}await k.a.signOut(k.auth);S.user=null;S.ver=false;setMsg('Signed out.')}
  }catch(x){setMsg(nice(x),1)}
 });
 if(window.__booted)start();
