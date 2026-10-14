@@ -85,8 +85,7 @@ body::before{content:"";position:fixed;left:-20%;right:-20%;top:-10%;height:70vh
 input[type=datetime-local]{background:#141414;border:1px solid #333;color:var(--tx);border-radius:0;font:inherit;font-size:16px;padding:9px 10px;width:100%;min-height:42px;-webkit-appearance:none;appearance:none}
 input[type=time]{min-height:42px;-webkit-appearance:none;appearance:none}
 .row>div{min-width:0}
-input[type=datetime-local]{min-width:0;max-width:100%;font-size:12.5px;padding:9px 4px}
-#ctime_p{font-size:14px}
+input[type=datetime-local],input[type=time],input[type=date]{min-width:0;max-width:100%;font-size:16px;padding:9px 10px}
 .chips.cal5{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
 .chips.cal5 .chip{min-width:0;padding:8px 0;font-size:12.5px;text-align:center}
 input[type=date],input[type=time],input[type=datetime-local]{-webkit-appearance:none;appearance:none;display:block;box-sizing:border-box;width:100%;min-width:0!important;max-width:100%;height:42px;margin:0;text-align:left;line-height:1.2}input[type=date]::-webkit-date-and-time-value,input[type=time]::-webkit-date-and-time-value,input[type=datetime-local]::-webkit-date-and-time-value{text-align:left;margin:0;min-height:1.2em}input[type=text],input[type=number],select{height:42px}.row.al label.f{min-height:2.7em;display:flex;align-items:flex-end}
@@ -257,7 +256,7 @@ function rEdit(a){const t=view.t;if(!t.exits)t.exits=[{p:'',s:''}];
 <div class="row"><div><label class="f">Date</label><input type="date" id="date" value="${esc(t.date)}"></div><div><label class="f">Trade #</label><input type="text" id="num" value="${esc(t.num)}"></div></div>
 <div id="scan" class="mu" style="margin-top:8px">${esc(view.scan||'')}</div>
 <div class="row al"><div><label class="f">Ticker ${fl(t,'sym')}</label><input type="text" id="sym" value="${esc(t.sym)}"></div><div><label class="f">Time of trade (your fill time)</label><div style="display:flex;flex-direction:column;gap:6px"><input type="time" id="ttime" style="min-width:0" value="${esc(t.ttime)}"><select id="ttz">${[['America/New_York','Eastern'],['America/Chicago','Central'],['America/Denver','Mountain'],['America/Los_Angeles','Pacific'],['UTC','UTC']].map(([v,l])=>`<option value="${v}" ${(t.ttz||'America/New_York')===v?'selected':''}>${l}</option>`).join('')}</select></div></div></div>
-<div class="row"><div><label class="f">Chart clock at capture ${fl(t,'ctime')}</label>${clockPick(t)}</div><div><label class="f">Chart cursor date/time ${fl(t,'cx')}</label>${cxPick(t)}</div></div>
+<div class="row" style="display:block"><div><label class="f">Chart clock at capture ${fl(t,'ctime')}</label>${clockPick(t)}</div><div style="margin-top:12px"><label class="f">Chart cursor date/time ${fl(t,'cx')}</label>${cxPick(t)}</div></div>
 <label class="f">Session</label><select id="sess"><option value="">${autoOn()?'Auto (from Time of trade, ET)':'Unassigned'}</option>${sessList().map(x=>`<option value="${esc(x.n)}" ${t.sess===x.n?'selected':''}>${esc(x.n)}</option>`).join('')}</select>
 <div class="mu" style="margin-top:6px">The chart clock and cursor are filled when they are readable in the screenshot. Time of trade is never taken from the chart clock: enter it, or leave it blank if unknown. Entry and exit prices are below.</div>
 <h2>Risk and exits</h2><div class="card">
