@@ -21,7 +21,7 @@ async function start(){
 }
 async function linkAndSync(u){
  if(S.st.uid&&S.st.uid!==u.uid){ // this device holds another account's journal
-  if(!confirm('This phone holds the journal of a different account. Replace it with the journal of '+(u.email||'this account')+'? Export a backup first if you need it.')){await S.sdk.a.signOut(S.sdk.auth);return}
+  if(!confirm('This phone holds the journal of a different account. Replace it with the journal of '+(u.email||'this account')+'? Trades on this phone that were never uploaded will be removed from this phone. Export a backup first if you need them.')){await S.sdk.a.signOut(S.sdk.auth);return}
   trades=[];await save();S.st={uid:'',hashes:{},base:{},cfgHash:'',cfgBase:'',lastPull:0,lastCfgU:0,lastSync:0};
  }
  if(!S.st.uid){S.st.uid=u.uid;S.st.email=u.email||'';S.st.base={};trades.forEach(t=>S.st.base[t.id]=th(t));S.st.cfgBase=ch();await saveSt()}
@@ -65,7 +65,7 @@ async function push(k,all){
  const chn=ch();if(chn!==S.st.cfgHash&&(chn!==S.st.cfgBase||all)){const u=Date.now();await f.setDoc(f.doc(k.fdb,'users',S.user.uid,'meta','cfg'),{u,d:JSON.stringify(cfg)});S.st.cfgHash=chn;S.st.lastCfgU=u;c++}
  return c}
 async function sync(all){
- if(S.busy||!S.user||!S.ver)return;S.busy=true;setMsg('Syncing...');
+ if(S.busy||!S.user||!S.ver||S.st.uid!==S.user.uid)return;S.busy=true;setMsg('Syncing...');
  try{const k=await sdk();await S.user.getIdToken(true);const a=await pull(k);await save();const b=await push(k,all);S.st.lastSync=Date.now();await saveSt();
   setMsg('Synced '+new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+(a.got?' · '+a.got+' updated from your account':'')+(b?' · '+b+' sent':''));}
  catch(e){setMsg(nice(e),1)}
@@ -77,7 +77,8 @@ window.JSYNC={
   const row='style="margin-top:10px"';
   const m=S.msg?`<p class="mu" style="margin-top:10px;${S.err?'color:var(--y)':''}">${esc2(S.msg)}</p>`:'';
   if(!S.ready)return '';
-  if(S.user&&S.ver)return `<div class="card"><b>Account</b><p class="mu">Signed in as ${esc2(S.user.email)}. Your journal syncs to this private account and is visible only when you sign in.</p><div class="row"><button class="btn" data-sy="sync">Sync now</button><button class="btn sec" data-sy="out">Sign out</button></div><div class="row" ${row}><button class="btn sec" data-sy="all">Upload this device's journal</button></div><p class="mu" style="margin-top:10px">Trades that were on this phone before you signed in stay local until you upload them or edit them. Signing out keeps the journal on this phone.</p>${m}</div>`;
+  const np=trades.filter(t=>!S.st.hashes[t.id]).length;
+  if(S.user&&S.ver)return `<div class="card"><b>Account</b><p class="mu">Signed in as ${esc2(S.user.email)}. Your journal syncs to this private account and is visible only when you sign in.</p><div class="row"><button class="btn" data-sy="sync">Sync now</button><button class="btn sec" data-sy="out">Sign out</button></div><div class="row" ${row}><button class="btn sec" data-sy="all">Upload this device's journal</button></div><p class="mu" style="margin-top:10px">${np?np+(np===1?' trade on this phone is':' trades on this phone are')+' not uploaded yet. They stay local until you upload them or edit them.':'All trades on this phone are uploaded.'} Signing out keeps the journal on this phone.</p>${m}</div>`;
   if(S.user)return `<div class="card"><b>Account</b><p class="mu">Check ${esc2(S.user.email)} for the verification email from this journal, open its link, then tap the button below. Nothing syncs until your email is verified.</p><div class="row"><button class="btn" data-sy="chk">I verified</button><button class="btn sec" data-sy="resend">Resend email</button></div><div class="row" ${row}><button class="btn sec" data-sy="out">Sign out</button></div>${m}</div>`;
   return `<div class="card"><b>Account</b><p class="mu">Optional. Sign in to keep a private copy of your journal that syncs across your devices. Without an account, everything stays on this phone as before.</p><label class="f">Email</label><input type="email" id="syem" autocomplete="email" autocapitalize="off" spellcheck="false" value="${esc2(S.em||'')}"><label class="f">Password</label><input type="password" id="sypw" autocomplete="current-password"><div class="row" ${row}><button class="btn" data-sy="in">Sign in</button><button class="btn sec" data-sy="new">Create account</button></div><div class="row" ${row}><button class="btn sec" data-sy="reset">Forgot password</button></div>${m}</div>`},
  init(){start()}};
