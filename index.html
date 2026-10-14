@@ -40,7 +40,7 @@ input:focus,textarea:focus{outline:none;border-color:#8c8c8c}
 .btn{background:var(--grad-hi);color:#111;border:1px solid #fff5;border-radius:0;padding:13px 16px;font:inherit;font-weight:700;box-shadow:0 1px 0 #fff8 inset,0 4px 12px #0007}
 .btn.sec{background:var(--grad-mid);color:#e6e6e6;border:1px solid #5a5a5a88;font-weight:600;box-shadow:0 1px 0 #ffffff18 inset}
 .btn.del{background:linear-gradient(180deg,#3d1a20,#2a1217);color:var(--r);border:1px solid #6a2a33}
-.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;position:sticky;top:0;background:#101010ee;backdrop-filter:blur(8px);padding:8px 0;z-index:5}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;position:sticky;top:0;background:none;padding:8px 0;z-index:5}
 .shot{width:100%;border-radius:0;margin-top:6px;display:block}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat{background:var(--grad-card);border:1px solid var(--line);border-radius:0;padding:14px;box-shadow:0 1px 0 #ffffff12 inset}.stat b{display:block;font-size:26px}.stat span{color:var(--mu);font-size:12px}
 .mu{color:var(--mu);font-size:13px}.empty{text-align:center;color:var(--mu);padding:50px 20px}
@@ -89,6 +89,7 @@ input[type=datetime-local]{min-width:0;max-width:100%;font-size:12.5px;padding:9
 .chips.cal5{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
 .chips.cal5 .chip{min-width:0;padding:8px 0;font-size:12.5px;text-align:center}
 input[type=date],input[type=time],input[type=datetime-local]{-webkit-appearance:none;appearance:none;display:block;box-sizing:border-box;width:100%;min-width:0!important;max-width:100%;height:42px;margin:0;text-align:left;line-height:1.2}input[type=date]::-webkit-date-and-time-value,input[type=time]::-webkit-date-and-time-value,input[type=datetime-local]::-webkit-date-and-time-value{text-align:left;margin:0;min-height:1.2em}input[type=text],input[type=number],select{height:42px}.row.al label.f{min-height:2.7em;display:flex;align-items:flex-end}
+.top .btn,.top .btn.sec{display:flex;align-items:center;justify-content:center;background:none!important;border:0!important;box-shadow:none!important;padding:0!important;margin:0!important;width:44px;min-width:44px;min-height:44px}.top svg{display:block}.top #save,.top #edit{color:var(--tx)}.top #cancel,.top #back{color:var(--mu)}
 </style></head><body><div id="app"></div>
 <nav id="nav"></nav><button class="fab" id="fab" aria-label="New trade">+</button>
 <input type="file" id="file" accept="image/*" hidden><input type="file" id="imp" accept=".json,application/json" hidden>
@@ -243,7 +244,7 @@ document.addEventListener('change',e=>{const el=e.target;if(view.name!=='edit'||
 document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('[data-clr]');if(!a||view.name!=='edit')return;e.preventDefault();readForm();const k=a.dataset.clr;view.t[k]='';if(view.t.auto)delete view.t.auto[k];render()});
 const fl=(t,k)=>t.auto&&t.auto[k]?'<span style="color:var(--y);text-transform:none">· read from screenshot, confirm</span>':'';
 function rEdit(a){const t=view.t;if(!t.exits)t.exits=[{p:'',s:''}];
- a.innerHTML=`<div class="top"><button class="btn sec" id="cancel">Cancel</button><b>${view.isNew?'New trade':'Edit trade'}</b><button class="btn" id="save">Save</button></div>
+ a.innerHTML=`<div class="top"><button class="btn sec" id="cancel" aria-label="Cancel"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="square" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><b>${view.t.num?'Trade #'+esc(view.t.num):view.isNew?'New trade':'Edit trade'}</b><button class="btn" id="save" aria-label="Save"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="square" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button></div>
 <h2>Check-in</h2><div class="card">${cfg.groups.map(g=>`<div style="margin-bottom:4px"><label class="f" style="margin-top:12px">${esc(g.q)}</label>${chips(g,t)}</div>`).join('')}</div><h2>Trade</h2><label class="f">Chart screenshot</label>${t.img?`<img class="shot" src="${t.img}">`:''}<button class="btn sec" id="pick" style="margin-top:8px;width:100%">${t.img?'Replace screenshot':'Add screenshot from Photos'}</button>
 <div class="row"><div><label class="f">Date</label><input type="date" id="date" value="${esc(t.date)}"></div><div><label class="f">Trade #</label><input type="text" id="num" value="${esc(t.num)}"></div></div>
 <div id="scan" class="mu" style="margin-top:8px">${esc(view.scan||'')}</div>
@@ -266,7 +267,7 @@ ${(t.exits||[]).map((x,i)=>`<div class="row"><div><label class="f">Exit ${i+1} p
 ${cfg.notes.map(([k,l])=>`<label class="f">${l}</label><textarea data-n="${k}">${esc(t.notes[k]||'')}</textarea>`).join('')}
 ${view.isNew?'':'<button class="btn del" id="del" style="width:100%;margin-top:24px">Delete trade</button>'}`}
 function rDetail(a){const t=view.t;
- a.innerHTML=`<div class="top"><button class="btn sec" id="back">Back</button><b>${t.num?'#'+esc(t.num):esc(t.date)}</b><button class="btn" id="edit">Edit</button></div><canvas id="sheet" style="width:100%;border-radius:0;display:block"></canvas><div class="row" style="margin:10px 0"><button class="btn" id="shareimg">Save / share as image</button></div><h2>Details</h2>${t.img?`<img class="shot" src="${t.img}">`:''}
+ a.innerHTML=`<div class="top"><button class="btn sec" id="back" aria-label="Back"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="square" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><b>${t.num?'Trade #'+esc(t.num):esc(t.date)}</b><button class="btn" id="edit" aria-label="Edit"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="square" aria-hidden="true"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg></button></div><canvas id="sheet" style="width:100%;border-radius:0;display:block"></canvas><div class="row" style="margin:10px 0"><button class="btn" id="shareimg">Save / share as image</button></div><h2>Details</h2>${t.img?`<img class="shot" src="${t.img}">`:''}
 <div class="card" style="margin-top:12px">${pill(t.result)} <span class="mu">${esc(t.date)}${t.acc?' · ACC '+esc(t.acc):''}</span><div style="margin-top:8px">${t.sym?esc(t.sym)+' ':''}${etTime(t)?'· Time of trade <b>'+esc(etTime(t))+'</b> ':''}${t.cx?'· cursor '+esc(t.cx)+' ':''}${t.ctime?'· chart clock '+esc(t.ctime):''}</div><div style="margin-top:8px">${t.grade?'Grade <b>'+esc(t.grade)+'</b> ':''}${t.target?'· Target <b>'+esc(t.target)+'</b> ':''}${t.actual?'· Actual R:R <b>'+esc(t.actual)+'</b>':''}</div></div>
 ${[...cfg.groups,...cfg.extra].filter(g=>(t.pick[g.id]||[]).length).map(g=>`<div class="card"><div class="mu">${esc(g.label)}${g.q&&g.q!==g.label?' - '+esc(g.q):''}</div><div class="note">${esc(t.pick[g.id].join(', '))}</div></div>`).join('')}
 ${cfg.notes.filter(([k])=>t.notes[k]).map(([k,l])=>`<div class="card"><div class="mu">${l}</div><div class="note">${esc(t.notes[k])}</div></div>`).join('')}`}
@@ -279,7 +280,7 @@ function lines(g,text,mw){const out=[];for(const para of String(text||'').split(
 function drawSheet(c,t,done){const W=2400,Lw=Math.round(W*0.315),RH=50,F=26,pad=14;const pick=id=>t.pick[id]||[];
  const yn=(id,label)=>({label,opts:['YES','NO'],on:pick(id).map(x=>x.toUpperCase())});
  const rows=[];const r0=calcRR(t);
- rows.push({cells:[{opts:['PROFIT'],on:t.result==='profit'?['PROFIT']:[]},{opts:['LOSS'],on:t.result==='loss'?['LOSS']:[]},{opts:['BREAKEVEN'],on:t.result==='be'?['BREAKEVEN']:[]},{text:'ACC #  '+(t.acc||'')}]});
+ rows.push({cells:[{opts:['PROFIT'],on:t.result==='profit'?['PROFIT']:[]},{opts:['LOSS'],on:t.result==='loss'?['LOSS']:[]},{w:1.6,opts:['BREAKEVEN'],on:t.result==='be'?['BREAKEVEN']:[]},{text:'ACC #  '+(t.acc||'')}]});
  rows.push({cells:[{text:'GRADE: '+(t.grade||'')},{text:'TARGET R:R: '+(t.target||'')},{text:'ACTUAL R:R: '+(t.actual||'')}]});
  rows.push({label:'AMD PO3:',opts:['A','M','D'],on:pick('amd')});
  for(const g of cfg.groups){const short={sleep:'SLEEP >5 HRS',psych:'PSYCH DISTURBANCE',balance:'MEDITATED',focus:'SOCIAL MEDIA',dd:'DD STATE:',catalyst:'NEWS +-30 MIN',pad:'PA D. FACTOR:',dev:'PLAN DEVIATION'}[g.id]||g.label.toUpperCase();
@@ -301,7 +302,7 @@ function drawSheet(c,t,done){const W=2400,Lw=Math.round(W*0.315),RH=50,F=26,pad=
   for(const [k,l] of notes){g.font='bold '+F+'px sans-serif';g.fillText(l.toUpperCase(),Lw+pad,y+F/2);y+=F+8;g.font=F+'px sans-serif';for(const ln of lines(g,t.notes[k],tw)){g.fillText(ln,Lw+pad,y+F/2);y+=F+6}y+=pad}
   // left pane rows
   let ry=ih;for(const r of rows){g.beginPath();g.moveTo(0,ry+RH);g.lineTo(Lw,ry+RH);g.stroke();const cy=ry+RH/2;g.font='bold '+F+'px sans-serif';g.textAlign='left';
-   if(r.cells){const cw=Lw/r.cells.length;r.cells.forEach((cell,i)=>{if(i){g.beginPath();g.moveTo(cw*i,ry);g.lineTo(cw*i,ry+RH);g.stroke()}let x=cw*i+pad;if(cell.opts){const z=box(x,cy,cell.on.length>0);g.fillText(cell.opts[0],x+z+10,cy)}else{let fs=F;g.font='bold '+fs+'px sans-serif';while(g.measureText(cell.text).width>cw-2*pad&&fs>14){fs--;g.font='bold '+fs+'px sans-serif'}g.fillText(cell.text,x,cy)}})}
+   if(r.cells){const W8=r.cells.map(c=>c.w||1),WS=W8.reduce((p,q)=>p+q,0);let ox=0;r.cells.forEach((cell,i)=>{const cw=Lw*W8[i]/WS,x0=ox;ox+=cw;if(i){g.beginPath();g.moveTo(x0,ry);g.lineTo(x0,ry+RH);g.stroke()}let x=x0+pad;if(cell.opts){const z=box(x,cy,cell.on.length>0);g.fillText(cell.opts[0],x+z+10,cy)}else{let fs=F;g.font='bold '+fs+'px sans-serif';while(g.measureText(cell.text).width>cw-2*pad&&fs>14){fs--;g.font='bold '+fs+'px sans-serif'}g.fillText(cell.text,x,cy)}})}
    else if(r.opts){let x=pad;let fs=F;const need=()=>(r.label?g.measureText(r.label).width+pad:0)+r.opts.reduce((a,o)=>a+g.measureText(o).width+(F-6)+36,0);g.font='bold '+fs+'px sans-serif';while(need()>Lw-2*pad&&fs>13){fs--;g.font='bold '+fs+'px sans-serif'}
     if(r.label){g.fillText(r.label,x,cy);x+=g.measureText(r.label).width+pad;g.beginPath();g.moveTo(x-pad/2,ry);g.lineTo(x-pad/2,ry+RH);g.stroke()}
     for(const o of r.opts){const z=box(x,cy,r.on.includes(o)||r.on.includes(o.toLowerCase()));g.fillText(o,x+z+8,cy);x+=z+8+g.measureText(o).width+28}}
