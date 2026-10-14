@@ -70,6 +70,7 @@ window.readShot=async function(url,onStep){
      const hit=arr.filter(x=>Math.abs(x.ax-curX)<=W*.02);if(hit.length===1)cand.cursorArrow=arr.indexOf(hit[0])}}
    out.found.cand=cand}
  }catch(e){out.raw.arrowErr=String(e)}
- try{step('Reading symbol...');const sv=[];for(const sc of[3,4,5]){for(const inv of[false,true]){const t=(await ocr(w,toCanvas(img,[W*.0,H*.866,W*.2,H*.02],sc,inv),7,'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!.:')).replace(/\s/g,'');if(/^[A-Z][A-Z0-9.]{0,9}!?[0-9]?!?$/.test(t)&&t.length>=2)sv.push(t)}}
-  out.raw.symVotes=sv;const m={};sv.forEach(v=>m[v]=(m[v]||0)+1);const e=Object.entries(m).sort((a,b)=>b[1]-a[1]);if(e.length&&e[0][1]>=2&&(!e[1]||e[1][1]<e[0][1]))out.found.tickerCand=e[0][0]}catch(e){out.raw.symErr=String(e)}
+ try{step('Reading symbol...');const sv=[];const bands=[[0,.866,.2,.02]];for(let f=.72;f<=.93;f+=.02){bands.push([0,f,.24,.05]);bands.push([.07,f,.115,.05])};for(let f=0;f<=.10;f+=.025)bands.push([0,f,.24,.035]);
+  for(const bd of bands){for(const sc of(bd[1]===.866?[3,4,5]:[3,4])){for(const inv of[false,true]){const t=(await ocr(w,toCanvas(img,[W*bd[0],H*bd[1],W*bd[2],H*bd[3]],sc,inv),7,'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!.:')).replace(/\s/g,'');if(/^[A-Z][A-Z0-9.]{0,9}!?[0-9]?!?$/.test(t)&&t.length>=2&&(bd[1]===.866||/^[A-Z]{1,5}[0-9]?!$/.test(t)))sv.push(t)}}}
+  out.raw.symVotes=sv;const m={};sv.forEach(v=>m[v]=(m[v]||0)+1);const e=Object.entries(m).sort((a,b)=>b[1]-a[1]);if(e.length&&e[0][1]>=2&&(!e[1]||e[1][1]<e[0][1]))out.found.tickerCand=e[0][0];else if(e.length>1&&e[0][1]>=2)out.found.tickerAlts=e.filter(x=>x[1]===e[0][1]).map(x=>x[0])}catch(e){out.raw.symErr=String(e)}
  return out};
