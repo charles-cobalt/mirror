@@ -104,14 +104,14 @@ const kvset=(k,v)=>new Promise(r=>{const t=db.transaction(ST,'readwrite');t.obje
 // Field layout copied from the sheet screenshot. Labels and options are editable in Settings.
 const YN=['Yes','No'];
 const DEFAULT_CFG={v:3,groups:[
- {id:'sleep',label:'Sleep state',q:'Did you get more than 5 hours of sleep?',opts:YN,multi:false},
- {id:'psych',label:'Psychological state',q:'Are there any psychological disturbances in your life today?',opts:YN,multi:false},
- {id:'balance',label:'Balance state',q:'Did you meditate today?',opts:YN,multi:false},
- {id:'focus',label:'Focus state',q:'Were you on any social media today?',opts:YN,multi:false},
+ {id:'sleep',label:'Sleep State',q:'Did you get more than 5 hours of sleep?',opts:YN,multi:false},
+ {id:'psych',label:'Psychological State',q:'Are there any psychological disturbances in your life today?',opts:YN,multi:false},
+ {id:'balance',label:'Balance State',q:'Did you meditate today?',opts:YN,multi:false},
+ {id:'focus',label:'Focus State',q:'Were you on any social media today?',opts:YN,multi:false},
  {id:'dev',label:'Plan Deviation State',q:'Did you deviate from your initial trade plan?',opts:YN,multi:false},
- {id:'dd',label:'Drawdown state',q:'Drawdown state',opts:['Green','Yellow','Orange','Red'],multi:false,colored:true},
- {id:'catalyst',label:'Catalyst state',q:'Was there any news or catalyst within 30 minutes before or after the trade you took?',opts:YN,multi:false},
- {id:'pad',label:'Price action delivery factor',q:'Which is driving the price action today: liquidity, catalyst news, or the market?',opts:['Liquidity','Catalyst news','Market'],multi:true}],
+ {id:'dd',label:'Drawdown State',q:'Drawdown State',opts:['Green','Yellow','Orange','Red'],multi:false,colored:true},
+ {id:'catalyst',label:'Catalyst State',q:'Was there any news or catalyst within 30 minutes before or after the trade you took?',opts:YN,multi:false},
+ {id:'pad',label:'Price Action Delivery State',q:'Which is driving the price action today: liquidity, catalyst news, or the market?',opts:['Liquidity','Catalyst news','Market'],multi:true}],
  extra:[{id:'amd',label:'AMD PO3',opts:['A','M','D'],multi:false}],
  notes:[['initial','Initial notes'],['plan','Setup plan'],['post','Post notes'],['deviation','Setup deviation'],['mistakes','Mistakes'],['lessons','Lessons']]};
 let trades=[],cfg=DEFAULT_CFG,view={name:'list'},nid=1;
@@ -146,8 +146,8 @@ function calcRR(t){const r={msgs:[]};const d=t.dir==='Long'?1:t.dir==='Short'?-1
  if(ex.length){const multi=ex.length>1;const sizes=ex.map(x=>isNaN(num(x.s))?(multi?NaN:1):num(x.s));
   if(sizes.some(isNaN)||sizes.some(z=>z<=0)){r.msgs.push('Enter contracts for each exit so partials can be weighted.')}
   else{const tot=sizes.reduce((a,b)=>a+b,0);const pts=ex.reduce((a,x,i)=>a+sizes[i]*(num(x.p)-e)*d,0);r.gross=pts/(tot*risk);r.tot=tot;r.points=pts;
-   const f=num(t.fees),pp=num(t.ppp);if(!isNaN(pp)&&pp>0){const gd=pts*pp;r.dollars=gd;const net=gd-(isNaN(f)?0:f);r.net=net/(tot*risk*pp);r.netd=net}
-   else if(!isNaN(f)&&f>0)r.msgs.push('Add $ per point to include fees.')}}
+   const f=num(t.fees),pp=num(t.ppp);if(!isNaN(pp)&&pp>0){const gd=pts*pp;r.dollars=gd;if(!isNaN(f)){const net=gd-f;r.net=net/(tot*risk*pp);r.netd=net}}
+   else if(!isNaN(f)&&f>0)r.msgs.push('Add $ per point to include fees.');if(!isNaN(pp)&&pp>0&&isNaN(f))r.msgs.push('Fees are blank, so this R is before fees (not assumed $0).')}}
  else r.msgs.push('Add an exit price to get the Actual R:R.');
  return r}
 const netOf=t=>{if(String(t.fees==null?'':t.fees).trim()==='')return null;const r=calcRR(t);return r.net==null?null:r.net};
@@ -341,7 +341,7 @@ document.getElementById('file').onchange=async e=>{const f=e.target.files[0];e.t
  catch(err){view.scan='Could not run the screenshot reader (needs internet the first time). Fill in the fields manually.'}render()};
 document.getElementById('imp').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!Array.isArray(j.trades))throw 0;if(!confirm('Import '+j.trades.length+' trades? Matching trades are overwritten and the others are kept.'))return;const m=new Map(trades.map(t=>[t.id,t]));j.trades.forEach(t=>m.set(t.id,t));trades=[...m.values()];await save();view={name:'list'};render()}catch{alert('That file is not a journal backup.')}e.target.value=''};
 
-(async()=>{db=await open();trades=(await kvget('trades'))||[];cfg=(await kvget('cfg'));if(!cfg||cfg.v!==3)cfg=DEFAULT_CFG;else{const q={catalyst:[DEFAULT_CFG.groups.find(g=>g.id==='catalyst').q,'Is there any news or catalyst within 30 minutes before or after the taken trade?'],pad:[DEFAULT_CFG.groups.find(g=>g.id==='pad').q,'Is it liquidity, catalyst news, or market that is driving the price action today?']};cfg.groups.forEach(g=>{if(q[g.id]&&g.q===q[g.id][1])g.q=q[g.id][0]});cfg.groups.forEach(g=>{if(g.id==='pad'){g.opts=g.opts.filter(o=>o!=='Random');if(/random/i.test(g.q))g.q=DEFAULT_CFG.groups.find(x=>x.id==='pad').q}});if(!cfg.groups.some(g=>g.id==='dev')){const fi=cfg.groups.findIndex(g=>g.id==='focus');cfg.groups.splice(fi>=0?fi+1:cfg.groups.length,0,JSON.parse(JSON.stringify(DEFAULT_CFG.groups.find(g=>g.id==='dev'))))}}
+(async()=>{db=await open();trades=(await kvget('trades'))||[];cfg=(await kvget('cfg'));if(!cfg||cfg.v!==3)cfg=DEFAULT_CFG;else{const q={catalyst:[DEFAULT_CFG.groups.find(g=>g.id==='catalyst').q,'Is there any news or catalyst within 30 minutes before or after the taken trade?'],pad:[DEFAULT_CFG.groups.find(g=>g.id==='pad').q,'Is it liquidity, catalyst news, or market that is driving the price action today?']};cfg.groups.forEach(g=>{if(q[g.id]&&g.q===q[g.id][1])g.q=q[g.id][0]});{const REN={sleep:'Sleep state',psych:'Psychological state',balance:'Balance state',focus:'Focus state',dd:'Drawdown state',catalyst:'Catalyst state',pad:'Price action delivery factor'};cfg.groups.forEach(g=>{if(REN[g.id]&&g.label===REN[g.id])g.label=DEFAULT_CFG.groups.find(x=>x.id===g.id).label;if(g.id==='dd'&&g.q==='Drawdown state')g.q='Drawdown State'})}cfg.groups.forEach(g=>{if(g.id==='pad'){g.opts=g.opts.filter(o=>o!=='Random');if(/random/i.test(g.q))g.q=DEFAULT_CFG.groups.find(x=>x.id==='pad').q}});if(!cfg.groups.some(g=>g.id==='dev')){const fi=cfg.groups.findIndex(g=>g.id==='focus');cfg.groups.splice(fi>=0?fi+1:cfg.groups.length,0,JSON.parse(JSON.stringify(DEFAULT_CFG.groups.find(g=>g.id==='dev'))))}}
  if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
  if(location.hash==='#new'){view={name:'edit',t:blank(),isNew:true}}
  if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');render()})();
