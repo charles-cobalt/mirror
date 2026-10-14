@@ -148,7 +148,7 @@ function shrink(file){return new Promise(res=>{const rd=file=>new Promise(r=>{co
 // Net R subtracts fees: (gross dollars - fees) / (total size * risk points * $ per point).
 const num=v=>{const n=parseFloat(String(v).replace(/,/g,''));return isFinite(n)?n:NaN};
 function calcRR(t){const r={msgs:[]};const d=t.dir==='Long'?1:t.dir==='Short'?-1:0,e=num(t.entry),st=num(t.stop),tp=num(t.tp);
- if(!d||isNaN(e)||isNaN(st))return r
+ if(!d||isNaN(e)||isNaN(st)){if(t.entry||t.stop||t.tp)r.msgs.push('Enter direction, entry and stop price to calculate the R:R.');return r}
  if((st-e)*d>=0){r.msgs.push('Stop should be below entry for a long, above entry for a short.');return r}
  const risk=Math.abs(e-st);r.risk=risk;
  if(!isNaN(tp)){if((tp-e)*d<=0)r.msgs.push('Target is on the wrong side of entry.');else r.planned=Math.abs(tp-e)/risk}
@@ -164,13 +164,13 @@ const netOf=t=>{if(String(t.fees==null?'':t.fees).trim()==='')return null;const 
 const fr=(x,p=2)=>(x>0?'+':'')+x.toFixed(p);
 function rrHTML(t){const r=calcRR(t);let h='';
  if(r.planned!=null)h+=`<div>Planned R:R <b>1 : ${r.planned.toFixed(2)}</b></div>`;
- if(r.gross!=null){h+=`<div>Actual R:R <b>${fr(r.gross)}R</b> <span class="mu">(initial stop, before fees)</span></div>`;if(r.net!=null)h+=`<div>Actual R:R after fees <b>${fr(r.net)}R</b> <span class="mu">(${r.netd>=0?'+':'-'}$${Math.abs(r.netd).toFixed(2)})</span></div>`;
+ if(r.gross!=null){h+=`<div>Actual R:R <b>${fr(r.gross)}R</b> <span class="mu">(from your stop price, before fees)</span></div>`;if(r.net!=null)h+=`<div>Actual R:R after fees <b>${fr(r.net)}R</b> <span class="mu">(${r.netd>=0?'+':'-'}$${Math.abs(r.netd).toFixed(2)})</span></div>`;
   h+=`<div class="mu">${r.gross>0?'This looks like a win by the numbers, but you still choose the Result above.':r.gross<0?'This looks like a loss by the numbers, but you still choose the Result above.':'This is break even by the numbers.'}</div>`}
  h+=r.msgs.map(m=>`<div class="mu" style="color:var(--y)">${esc(m)}</div>`).join('');return h}
 function syncRR(){const t=view.t;readForm();const b=document.getElementById('rrbox');if(b)b.innerHTML=rrHTML(t);const r=calcRR(t);
  const tg=document.getElementById('target'),ac=document.getElementById('actual');
- if(r.planned!=null){t.target='1:'+r.planned.toFixed(2);if(tg)tg.value=t.target}
- if(r.gross!=null){t.actual=fr(r.net!=null?r.net:r.gross)+'R';if(ac)ac.value=t.actual}}
+ if(r.planned!=null){t.target='1:'+r.planned.toFixed(2);if(tg)tg.value=t.target}else if(/^1:\d/.test(t.target||'')){t.target='';if(tg)tg.value=''}
+ if(r.gross!=null){t.actual=fr(r.net!=null?r.net:r.gross)+'R';if(ac)ac.value=t.actual}else if(/R$/.test(t.actual||'')&&/^[-+]\d/.test(t.actual)){t.actual='';if(ac)ac.value=''}}
 
 // ---------- views ----------
 const icons={list:'<g transform="translate(0,0.3)"><path d="M64 256Q256 70 448 256Q256 106 64 256Z" fill="currentColor"/><path d="M194 256A62 62 0 0 1 318 256" stroke="currentColor" stroke-width="20"/><path d="M230 256A26 26 0 0 1 282 256Z" fill="currentColor"/></g><g transform="translate(0,-0.3) translate(0,256) scale(1,-1) translate(0,-256)"><path d="M64 256Q256 70 448 256Q256 106 64 256Z" fill="currentColor"/><path d="M194 256A62 62 0 0 1 318 256" stroke="currentColor" stroke-width="20"/><path d="M230 256A26 26 0 0 1 282 256Z" fill="currentColor"/></g>',stats:'<path d="M64 256.3Q256 70 448 256.3Q256 106 64 256.3Z" fill="currentColor"/><path d="M64 255.7Q256 442 448 255.7Q256 406 64 255.7Z" fill="currentColor"/>',set:'<circle cx="256" cy="256" r="62" stroke="currentColor" stroke-width="20"/><circle cx="256" cy="256" r="26" fill="currentColor"/>'};const iconVB={list:'32 32 448 448',stats:'32 32 448 448',set:'110 110 292 292'};
@@ -299,7 +299,8 @@ function rEdit(a){const t=view.t;if(!t.exits)t.exits=[{p:'',s:''}];
 <div class="mu" style="margin-top:6px">${t.auto&&t.auto.ttime?'This time came from the crosshair on your entry candle. It is the candle\'s minute, not the exact fill second, and the chart timezone is not shown, so check the timezone.':'Time of trade is your fill time. The chart\'s own clock is never used. If you apply a suggestion from the Entry screenshot, it is the entry candle\'s time from the crosshair, which is approximate. Otherwise enter it, or leave it blank.'} Entry and exit prices are below.</div>
 <h2>Risk and exits</h2><div class="card">
 <label class="f" style="margin-top:0">Direction</label><div class="chips"><button type="button" class="chip ${t.dir==='Long'?'on':''}" data-dir="Long">Long</button><button type="button" class="chip ${t.dir==='Short'?'on':''}" data-dir="Short">Short</button></div>
-<div class="row"><div><label class="f">Entry price ${fl(t,'entry')}</label><input type="text" inputmode="decimal" id="entry" value="${esc(t.entry)}"></div><div><label class="f">Target price (optional)</label><input type="text" inputmode="decimal" id="tp" value="${esc(t.tp)}"></div></div>
+<div class="row"><div><label class="f">Entry price ${fl(t,'entry')}</label><input type="text" inputmode="decimal" id="entry" value="${esc(t.entry)}"></div><div><label class="f">Stop price</label><input type="text" inputmode="decimal" id="stop" value="${esc(t.stop)}"></div></div>
+<label class="f">Target price</label><input type="text" inputmode="decimal" id="tp" value="${esc(t.tp)}">
 ${(t.exits||[]).map((x,i)=>`<div class="row"><div><label class="f">Exit ${i+1} price</label><input type="text" inputmode="decimal" data-exp="${i}" value="${esc(x.p)}"></div><div><label class="f">Contracts</label><input type="text" inputmode="decimal" data-exs="${i}" value="${esc(x.s)}"></div></div>`).join('')}
 <button type="button" class="btn sec" id="addexit" style="margin-top:10px">+ Add partial exit</button>
 <div class="row"><div><label class="f">Fees total, USD (optional)</label><input type="text" inputmode="decimal" id="fees" value="${esc(t.fees)}"></div><div><label class="f">$ per point (optional)</label><input type="text" inputmode="decimal" id="ppp" value="${esc(t.ppp)}"></div></div>
@@ -331,7 +332,7 @@ function drawSheet(c,t,done){const W=2400,RH=50,F=26,pad=14;let Lw=Math.round(W*
  for(const g of cfg.groups){const short={sleep:'SLEEP >5 HRS',psych:'PSYCH DISTURBANCE',balance:'MEDITATED',focus:'SOCIAL MEDIA',dd:'DD STATE:',catalyst:'NEWS +-30 MIN',pad:'PA D. FACTOR:',dev:'PLAN DEVIATION'}[g.id]||g.label.toUpperCase();
   rows.push({label:short,opts:g.opts.map(o=>o.toUpperCase()),on:pick(g.id).map(x=>x.toUpperCase())})}
  {const xs=(t.exits||[]).filter(x=>String(x.p==null?'':x.p).trim()!==''),one=xs.length===1;const cs=xs.map(x=>num(x.s)),ct=cs.length&&cs.every(v=>!isNaN(v))?cs.reduce((a,b)=>a+b,0):null;const cq=ct!=null?String(ct):(String(t.qty==null?'':t.qty).trim());
-  const parts=[t.dir&&t.dir.toUpperCase(),t.entry&&'ENTRY '+t.entry,xs.length&&xs.map((x,k)=>(one?'EXIT ':'EXIT '+(k+1)+' ')+x.p+(String(x.s==null?'':x.s).trim()!==''&&!one?' x '+x.s:'')).join(' '),cq&&'CONTRACTS '+cq,t.stop&&'STOP '+t.stop].filter(Boolean);if(parts.length)rows.push({text:parts.join('   '),one:true})}
+  const parts=[t.dir&&t.dir.toUpperCase(),t.entry&&'ENTRY '+t.entry,t.stop&&'STOP '+t.stop,xs.length&&xs.map((x,k)=>(one?'EXIT ':'EXIT '+(k+1)+' ')+x.p+(String(x.s==null?'':x.s).trim()!==''&&!one?' x '+x.s:'')).join(' '),cq&&'CONTRACTS '+cq].filter(Boolean);if(parts.length)rows.push({text:parts.join('   '),one:true})}
  rows.push({text:'TIME OF TRADE  '+(etTime(t)||'')});
  for(const r of rows){if(r.label)r.label=U(r.label);if(r.text)r.text=U(r.text);if(r.opts)r.opts=r.opts.map(U);if(r.on)r.on=r.on.map(U);if(r.cells)for(const c of r.cells){if(c.text)c.text=U(c.text);if(c.opts)c.opts=c.opts.map(U);if(c.on)c.on=c.on.map(U)}}
  const g0=document.createElement('canvas').getContext('2d');g0.font='700 '+F+'px DINish, sans-serif';
