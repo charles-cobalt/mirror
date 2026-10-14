@@ -75,6 +75,8 @@ body::before{content:"";position:fixed;left:-20%;right:-20%;top:-10%;height:70vh
 #app{position:relative;z-index:1}
 
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}.cd{background:#141414;border:1px solid #2a2a2a;min-height:52px;padding:3px;font:inherit;font-size:9px;overflow:hidden;color:var(--mu);text-align:left;line-height:1.25}.cd b{display:block;font-size:12px;color:var(--tx);font-weight:600}
+.top .btn.sec{background:none;border:0;padding:8px 4px;min-width:44px;min-height:44px;font-size:13px;font-weight:500;color:var(--mu);letter-spacing:.02em;text-align:left}
+.top .btn.sec:active{color:var(--tx)}
 </style></head><body><div id="app"></div>
 <nav id="nav"></nav><button class="fab" id="fab" aria-label="New trade">+</button>
 <input type="file" id="file" accept="image/*" hidden><input type="file" id="imp" accept=".json,application/json" hidden>
@@ -230,7 +232,7 @@ ${view.isNew?'':'<button class="btn del" id="del" style="width:100%;margin-top:2
 function rDetail(a){const t=view.t;
  a.innerHTML=`<div class="top"><button class="btn sec" id="back">Back</button><b>${t.num?'#'+esc(t.num):esc(t.date)}</b><button class="btn" id="edit">Edit</button></div><canvas id="sheet" style="width:100%;border-radius:0;display:block"></canvas><div class="row" style="margin:10px 0"><button class="btn" id="shareimg">Save / share as image</button></div><h2>Details</h2>${t.img?`<img class="shot" src="${t.img}">`:''}
 <div class="card" style="margin-top:12px">${pill(t.result)} <span class="mu">${esc(t.date)}${t.acc?' · ACC '+esc(t.acc):''}</span><div style="margin-top:8px">${t.sym?esc(t.sym)+' ':''}${etTime(t)?'· Time of trade <b>'+esc(etTime(t))+'</b> ':''}${t.cx?'· cursor '+esc(t.cx)+' ':''}${t.ctime?'· chart clock '+esc(t.ctime):''}</div><div style="margin-top:8px">${t.grade?'Grade <b>'+esc(t.grade)+'</b> ':''}${t.target?'· Target <b>'+esc(t.target)+'</b> ':''}${t.actual?'· Actual R:R <b>'+esc(t.actual)+'</b>':''}</div></div>
-${[...cfg.groups,...cfg.extra].filter(g=>(t.pick[g.id]||[]).length).map(g=>`<div class="card"><div class="mu">${esc(g.label)}${g.q&&g.q!==g.label?' - '+esc(g.q):''}</div>${t.pick[g.id].map(o=>`<span class="pill p-none" style="margin:4px 4px 0 0;font-size:14px">${esc(o)}</span>`).join('')}</div>`).join('')}
+${[...cfg.groups,...cfg.extra].filter(g=>(t.pick[g.id]||[]).length).map(g=>`<div class="card"><div class="mu">${esc(g.label)}${g.q&&g.q!==g.label?' - '+esc(g.q):''}</div><div class="note">${esc(t.pick[g.id].join(', '))}</div></div>`).join('')}
 ${cfg.notes.filter(([k])=>t.notes[k]).map(([k,l])=>`<div class="card"><div class="mu">${l}</div><div class="note">${esc(t.notes[k])}</div></div>`).join('')}`}
 
 
