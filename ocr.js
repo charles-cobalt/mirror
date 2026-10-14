@@ -53,7 +53,9 @@ window.readShot=async function(url,onStep){
    if(pt&&pt.n>=3&&pt.second===0)best={price:pt.v,qty:(qt&&qt.n>=3&&qt.n>=votes.length*.6&&qt.second<=1)?+qt.v:null};
    if(best)arr.push({...c,...best});else unresolved++}
   arr.sort((a,b)=>a.ax-b.ax);out.raw.arrows=arr;
-  if(arr.length&&!unresolved){
+  // abstain unless exactly one entry arrow, or one entry plus one opposite-side exit (no scale-ins, partials or extra fills)
+  const clean=arr.length===1||(arr.length===2&&arr[0].dir!==arr[1].dir);
+  if(arr.length&&!unresolved&&clean){
    const entry=arr[0];
    const f={dir:entry.dir==='buy'?'Long':'Short',entry:entry.price,qty:entry.qty,exits:arr.slice(1).filter(e=>e.dir!==entry.dir).map(e=>({p:e.price,s:e.qty==null?'':e.qty}))};
    // black cursor label: a wide near-black box in the lower part of the chart
