@@ -287,7 +287,8 @@ function lines(g,text,mw){const out=[];for(const para of String(text||'').split(
 function drawSheet(c,t,done){const W=2400,RH=50,F=26,pad=14;let Lw=Math.round(W*0.315);const U=s=>String(s==null?'':s).toUpperCase();const pick=id=>t.pick[id]||[];
  const yn=(id,label)=>({label,opts:['YES','NO'],on:pick(id).map(x=>x.toUpperCase())});
  const rows=[];const r0=calcRR(t);
- rows.push({cells:[{opts:['PROFIT'],on:t.result==='profit'?['PROFIT']:[]},{opts:['LOSS'],on:t.result==='loss'?['LOSS']:[]},{w:1.6,opts:['BREAKEVEN'],on:t.result==='be'?['BREAKEVEN']:[]},{text:'ACC #  '+(t.acc||'')}]});
+ rows.push({cells:[{opts:['PROFIT'],on:t.result==='profit'?['PROFIT']:[]},{opts:['LOSS'],on:t.result==='loss'?['LOSS']:[]},{w:1.6,opts:['BREAKEVEN'],on:t.result==='be'?['BREAKEVEN']:[]}]});
+ rows.push({text:'ACC #  '+(t.acc||'')});
  rows.push({cells:[{text:'GRADE: '+(t.grade||'')},{text:'TARGET R:R: '+(t.target||'')},{text:'ACTUAL R:R: '+(t.actual||'')}]});
  rows.push({label:'AMD PO3:',opts:['A','M','D'],on:pick('amd')});
  for(const g of cfg.groups){const short={sleep:'SLEEP >5 HRS',psych:'PSYCH DISTURBANCE',balance:'MEDITATED',focus:'SOCIAL MEDIA',dd:'DD STATE:',catalyst:'NEWS +-30 MIN',pad:'PA D. FACTOR:',dev:'PLAN DEVIATION'}[g.id]||g.label.toUpperCase();
