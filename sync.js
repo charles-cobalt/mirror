@@ -44,7 +44,7 @@ async function pull(k){
   if(changed)continue; // this phone has newer edits; they will be pushed
   if(S.st.hashes[id]&&m.u<=(S.st.ut&&S.st.ut[id]||0))continue;
   const t=JSON.parse(m.d);t.img='';
-  if(m.n){let s='';const r=await f.getDocs(f.query(col(k,'imgs'),f.where('t','==',id)));const ps=[];r.forEach(x=>ps[x.data().k]=x.data().d);if(ps.length<m.n||ps.slice(0,m.n).some(x=>x==null))throw Object.assign(new Error('missing image chunks'),{code:'incomplete'});t.img=ps.slice(0,m.n).join('')}
+  if(m.n){let s='';const r=await f.getDocs(f.query(col(k,'imgs'),f.where('t','==',id)));const ps=[];r.forEach(x=>ps[x.data().k]=x.data().d);if(ps.length<m.n||ps.slice(0,m.n).some(x=>x==null))throw Object.assign(new Error('missing image chunks'),{code:'incomplete'});const sp=ps.slice(0,m.n).join('').split('|');t.img=sp[0];if(sp[1])t.img2=sp[1]}
   if(i>=0)trades[i]=t;else trades.push(t);
   S.st.hashes[id]=th(t);S.st.ut=S.st.ut||{};S.st.ut[id]=m.u;out.got++}
  S.st.lastPull=maxU;
@@ -53,7 +53,7 @@ async function pull(k){
  return out}
 async function pushTrade(k,t,force){
  const f=k.f,id=t.id,h=th(t);if(!force&&(S.st.hashes[id]===h||(!S.st.hashes[id]&&S.st.base[id]===h)))return 0;
- const {img,...rest}=t,u=Date.now(),im=img||'',n=im?Math.ceil(im.length/CH):0;
+ const {img,img2,...rest}=t,u=Date.now(),im=(img||'')+(img2?'|'+img2:''),n=im?Math.ceil(im.length/CH):0;
  for(let j=0;j<n;j++)await f.setDoc(f.doc(k.fdb,'users',S.user.uid,'imgs',id+'_'+j),{t:id,k:j,d:im.slice(j*CH,(j+1)*CH)});
  await f.setDoc(f.doc(k.fdb,'users',S.user.uid,'trades',id),{u,del:false,d:JSON.stringify(rest),n,ih:hs(im)});
  S.st.hashes[id]=h;S.st.ut=S.st.ut||{};S.st.ut[id]=u;S.st.n=S.st.n||{};S.st.n[id]=n;return 1}
