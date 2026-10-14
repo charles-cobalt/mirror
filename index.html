@@ -131,7 +131,7 @@ function etWd(t){if(!t.ttime||!t.date)return null;const z=t.ttz||'America/New_Yo
  const off=(zz,ms)=>{const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:zz,hourCycle:'h23',year:'numeric',month:'numeric',day:'numeric',hour:'numeric',minute:'numeric',second:'numeric'}).formatToParts(new Date(ms)).map(x=>[x.type,x.value]));return Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute,p.second)-Math.floor(ms/1000)*1000};
  const loc=Date.UTC(+d[1],+d[2]-1,+d[3],+m[1],+m[2]);let g=loc-off(z,loc);g=loc-off(z,g);
  const w=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',weekday:'short'}).format(new Date(g));return['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(w)}
-function blank(){return{id:Date.now().toString(36),date:today(),result:'',acc:'',num:'',grade:'',target:'',actual:'',pick:{},img:'',sym:'',pnl:'',qty:'',ctime:'',cx:'',ttime:'',ttz:'America/New_York',sess:'',dir:'',entry:'',stop:'',tp:'',exits:[{p:'',s:''}],fees:'',ppp:'',auto:{},notes:{}}}
+function blank(){return{id:Date.now().toString(36),date:today(),result:'',acc:'',num:'',grade:'',target:'',actual:'',pick:{},img:'',img2:'',sym:'',pnl:'',qty:'',ctime:'',cx:'',ttime:'',ttz:'America/New_York',sess:'',dir:'',entry:'',stop:'',tp:'',exits:[{p:'',s:''}],fees:'',ppp:'',auto:{},notes:{}}}
 
 // ---------- image: downscale before saving so storage stays small ----------
 function shrink(file,max=1400){return new Promise(res=>{const i=new Image();i.onload=()=>{const k=Math.min(1,max/Math.max(i.width,i.height));const c=document.createElement('canvas');c.width=i.width*k;c.height=i.height*k;c.getContext('2d').drawImage(i,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.82))};i.src=URL.createObjectURL(file)})}
@@ -243,8 +243,28 @@ function fmtClock(h,mi,sec,suf){const h12=h%12||12;return h12+':'+String(mi).pad
 function parseCx(s){const m=/^\s*(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\w*,?\s+)?(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+(\d{1,2}),?\s+(20\d\d)\s+(\d{1,2}):(\d\d)\s*([AP])M/i.exec(s||'');if(!m)return null;let h=+m[4]%12;if(m[6].toUpperCase()==='P')h+=12;const mo=MON.findIndex(x=>x.toLowerCase()===m[1].slice(0,3).toLowerCase());return{y:+m[3],mo,d:+m[2],h,mi:+m[5]}}
 const p2=n=>String(n).padStart(2,'0');
 function fmtCx(iso){const m=/^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)/.exec(iso||'');if(!m)return'';const y=+m[1],mo=+m[2]-1,d=+m[3],h=+m[4];return WD[new Date(Date.UTC(y,mo,d)).getUTCDay()]+' '+MON[mo]+' '+d+' '+y+' '+fmtClock(h,+m[5])}
-function candCard(){const c=view.cand;if(!c)return '';const ex=(c.exits||[]).map(e=>esc(e.p)+(e.s!==''?' x '+esc(e.s):'')).join('; ');
-return `<div class="card" style="margin-top:10px;border-color:var(--y)"><b>Suggestion from the screenshot - not applied</b><div class="mu" style="margin-top:6px">Order arrows read: ${esc(c.dir)}, entry ${esc(c.entry)}${c.qty!=null?' x '+esc(c.qty):' (contracts not read)'}${ex?', exit '+ex:''}. The first (leftmost) arrow is assumed to be the entry. If the screenshot is cropped or the trade had several fills, this can be wrong. Check it against the chart.</div>${c.ttime?`<div class="mu" style="margin-top:6px">Time on the crosshair: ${esc(c.ttime)} on ${esc(c.date)}. This is the minute of the entry bar, not the exact fill second, and the chart timezone is not visible.</div>`:''}<div class="row" style="margin-top:10px"><button class="btn" id="candfin">Use direction, entry and exit</button></div>${c.ttime?'<div class="row" style="margin-top:8px"><button class="btn sec" id="candtime">Use time and date (approximate)</button></div>':''}<div class="row" style="margin-top:8px"><button class="btn sec" id="canddis">Dismiss</button></div></div>`}
+function combine(){const S=view.scans||{},E=S.entry,X=S.exit,r={notes:[]},n=r.notes;
+ const pick=(sh,role)=>{if(!sh)return null;const c=sh.cand;if(!c){n.push('The '+role+' screenshot could not be read.');return null}
+  if(c.unresolved){n.push('In the '+role+' screenshot an order arrow was found but its label could not be read, so another arrow may be hiding. Nothing taken from it.');return null}
+  if(c.cursorArrow==null){n.push('In the '+role+' screenshot the crosshair is not on an order arrow, so I cannot tell which order is the '+role+'. Move the crosshair onto the '+role+' candle and send it again.');return null}
+  const a=c.arrows[c.cursorArrow];if(c.arrows.some((o,i)=>i!==c.cursorArrow&&o.dir===a.dir)){n.push('The '+role+' screenshot shows more than one '+(a.dir==='buy'?'buy':'sell')+' arrow (scale-in, partial or several fills). Enter those by hand.');return null}
+  return {a,c}};
+ const e=pick(E,'entry'),x=pick(X,'exit');
+ if(e){r.dir=e.a.dir==='buy'?'Long':'Short';r.entry=e.a.price;r.qty=e.a.qty;if(e.c.cursor){r.eTime=e.c.cursor.time;r.eDate=e.c.cursor.date}}
+ if(x){let ok=true;if(e&&x.a.dir===e.a.dir){n.push('Both screenshots show the same order direction at the crosshair, so they do not look like an entry and an exit of one trade. Exit not taken.');ok=false}
+  if(ok&&e){const opp=e.c.arrows.filter(o=>o.dir!==e.a.dir);if(opp.length&&!opp.some(o=>o.price===x.a.price)){n.push('The exit price in the Exit screenshot ('+x.a.price+') does not match the exit arrow visible in the Entry screenshot. Check that both screenshots are the same trade. Exit not taken.');ok=false}
+   const op2=x.c.arrows.filter(o=>o.dir!==x.a.dir);if(ok&&op2.length&&!op2.some(o=>o.price===e.a.price)){n.push('The entry price in the Entry screenshot ('+e.a.price+') does not match the entry arrow visible in the Exit screenshot. Check that both screenshots are the same trade. Exit not taken.');ok=false}}
+  if(ok){r.exitP=x.a.price;r.exitQ=x.a.qty;if(x.c.cursor){r.xTime=x.c.cursor.time;r.xDate=x.c.cursor.date}if(!e){r.dir=x.a.dir==='buy'?'Short':'Long';r.dirFromExit=1}}}
+ if(r.qty!=null&&r.exitQ!=null&&r.qty!==r.exitQ){n.push('Contracts differ between entry ('+r.qty+') and exit ('+r.exitQ+'): possible partial exit. Contracts not suggested.');r.qty=null}
+ const t1=E&&E.tk,t2=X&&X.tk;if(t1&&t2&&t1!==t2)n.push('The two screenshots show different symbols ('+t1+' and '+t2+'). Ticker not suggested.');else if(t1||t2){r.tk=t1||t2;if(!(t1&&t2))n.push('Ticker was read from one screenshot only.')}
+ if(!r.dir||r.dirFromExit&&!e){r.dirOnly=1}
+ return r}
+function candCard(){const S=view.scans;if(!S||!(S.entry||S.exit))return '';const r=combine(),has=r.entry||r.exitP||r.tk||r.eTime;
+ const L=[];if(r.dir&&!r.dirFromExit)L.push('Direction: '+esc(r.dir));if(r.entry)L.push('Entry: '+esc(r.entry)+(r.qty!=null?' x '+esc(r.qty):' (contracts not read)'));if(r.exitP)L.push('Exit: '+esc(r.exitP)+(r.exitQ!=null?' x '+esc(r.exitQ):' (contracts not read)'));if(r.tk)L.push('Ticker: '+esc(r.tk));
+ const tm=r.eTime?`<div class="mu" style="margin-top:6px">Entry candle time at the crosshair: ${esc(r.eTime)} on ${esc(r.eDate)}. This is the candle minute, not the exact fill second, and the chart timezone is not shown.</div>`:'';
+ const xm=r.xTime?`<div class="mu" style="margin-top:6px">Exit candle time at the crosshair: ${esc(r.xTime)} on ${esc(r.xDate)} (information only, there is no exit time field).</div>`:'';
+ const nt=r.notes.map(m=>`<div class="mu" style="margin-top:6px">${esc(m)}</div>`).join('');
+ return `<div class="card" style="margin-top:10px;border-color:var(--y)"><b>Suggestion from the screenshots - not applied</b><div class="mu" style="margin-top:6px">${L.length?L.join('<br>'):'Nothing could be read with enough certainty.'}</div>${tm}${xm}${nt}<div class="mu" style="margin-top:6px">Stop and risk are not read: a pending stop line is not your original stop. Nothing is applied until you tap below.</div>${r.entry||r.exitP?'<div class="row" style="margin-top:10px"><button class="btn" id="candfin">Use '+(r.entry&&r.exitP?'entry and exit':r.entry?'entry':'exit')+(r.qty!=null?' and contracts':'')+'</button></div>':''}${r.tk?'<div class="row" style="margin-top:8px"><button class="btn sec" id="candtk">Use ticker</button></div>':''}${r.eTime?'<div class="row" style="margin-top:8px"><button class="btn sec" id="candtime">Use entry candle time and date (approximate)</button></div>':''}<div class="row" style="margin-top:8px"><button class="btn sec" id="canddis">Dismiss</button></div></div>`}
 function clockPick(t){const p=parseClock(t.ctime),v=p?p2(p.h)+':'+p2(p.m):'';return`<input type="hidden" id="ctime" value="${esc(t.ctime)}"><input type="time" id="ctime_p" value="${v}" step="60"><div class="mu" style="font-size:11px;margin-top:3px">${t.ctime&&!p?'Read as "'+esc(t.ctime)+'" - pick a time to replace. ':''}${p&&p.suf?esc(p.suf)+' ':''}${t.ctime?'<a href="#" data-clr="ctime" style="color:var(--mu)">Clear</a>':''}</div>`}
 function cxPick(t){const p=parseCx(t.cx),v=p?p.y+'-'+p2(p.mo+1)+'-'+p2(p.d)+'T'+p2(p.h)+':'+p2(p.mi):'';return`<input type="hidden" id="cx" value="${esc(t.cx)}"><input type="datetime-local" id="cx_p" value="${v}"><div class="mu" style="font-size:11px;margin-top:3px">${t.cx&&!p?'Read as "'+esc(t.cx)+'" - pick a date and time to replace. ':''}${t.cx?'<a href="#" data-clr="cx" style="color:var(--mu)">Clear</a>':''}</div>`}
 document.addEventListener('change',e=>{const el=e.target;if(view.name!=='edit'||!el.matches||!el.matches('#ctime_p,#cx_p'))return;const t=view.t,k=el.id.slice(0,-2);
@@ -255,12 +275,12 @@ document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest
 const fl=(t,k)=>t.auto&&t.auto[k]?'<span style="color:var(--y);text-transform:none">· read from screenshot, confirm</span>':'';
 function rEdit(a){const t=view.t;if(!t.exits)t.exits=[{p:'',s:''}];
  a.innerHTML=`<div class="top"><button class="btn sec" id="cancel" aria-label="Cancel"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="square" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><b>${view.t.num?'Trade #'+esc(view.t.num):view.isNew?'New trade':'Edit trade'}</b><button class="btn" id="save" aria-label="Save"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="square" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button></div>
-<h2>Check-in</h2><div class="card">${cfg.groups.map(g=>`<div style="margin-bottom:4px"><label class="f" style="margin-top:12px">${esc(g.q)}</label>${chips(g,t)}</div>`).join('')}</div><h2>Trade</h2><label class="f">Chart screenshot</label>${t.img?`<img class="shot" src="${t.img}">`:''}<button class="btn sec" id="pick" style="margin-top:8px;width:100%">${t.img?'Replace screenshot':'Add screenshot from Photos'}</button>
+<h2>Check-in</h2><div class="card">${cfg.groups.map(g=>`<div style="margin-bottom:4px"><label class="f" style="margin-top:12px">${esc(g.q)}</label>${chips(g,t)}</div>`).join('')}</div><h2>Trade</h2><label class="f">CHART SCREENSHOT - ENTRY POSITION</label>${t.img?`<img class="shot" src="${t.img}">`:''}<button class="btn sec" id="pick" style="margin-top:8px;width:100%">${t.img?'REPLACE ENTRY POSITION FROM PHOTOS':'ADD ENTRY POSITION FROM PHOTOS'}</button><label class="f" style="margin-top:14px">CHART SCREENSHOT - EXIT POSITION</label>${t.img2?`<img class="shot" src="${t.img2}">`:''}<button class="btn sec" id="pick2" style="margin-top:8px;width:100%">${t.img2?'REPLACE EXIT POSITION FROM PHOTOS':'ADD EXIT POSITION FROM PHOTOS'}</button>
 <div class="row"><div><label class="f">Date</label><input type="date" id="date" value="${esc(t.date)}"></div><div><label class="f">Trade #</label><input type="text" id="num" value="${esc(t.num)}"></div></div>
 <div id="scan" class="mu" style="margin-top:8px">${esc(view.scan||'')}</div>${candCard()}
 <div class="row al"><div><label class="f">Ticker ${fl(t,'sym')}</label><input type="text" id="sym" value="${esc(t.sym)}"></div><div><label class="f">Time of trade (your fill time) ${fl(t,'ttime')}</label><div style="display:flex;flex-direction:column;gap:6px"><input type="time" id="ttime" style="min-width:0" value="${esc(t.ttime)}"><select id="ttz">${[['America/New_York','Eastern'],['America/Chicago','Central'],['America/Denver','Mountain'],['America/Los_Angeles','Pacific'],['UTC','UTC']].map(([v,l])=>`<option value="${v}" ${(t.ttz||'America/New_York')===v?'selected':''}>${l}</option>`).join('')}</select></div></div></div>
 <label class="f">Session</label><select id="sess"><option value="">${autoOn()?'Auto (from Time of trade, ET)':'Unassigned'}</option>${sessList().map(x=>`<option value="${esc(x.n)}" ${t.sess===x.n?'selected':''}>${esc(x.n)}</option>`).join('')}</select>
-<div class="mu" style="margin-top:6px">${t.auto&&t.auto.ttime?'Time of trade was read from the screenshot: it is the minute of the entry arrow bar (not the exact fill second), in the chart timezone, which the screenshot does not show. Check the timezone.':'Time of trade is your fill time. It is never taken from the chart clock: enter it, or leave it blank if unknown.'} Entry and exit prices are below.</div>
+<div class="mu" style="margin-top:6px">${t.auto&&t.auto.ttime?'This time came from the crosshair on your entry candle. It is the candle\'s minute, not the exact fill second, and the chart timezone is not shown, so check the timezone.':'Time of trade is your fill time. The chart\'s own clock is never used. If you apply a suggestion from the Entry screenshot, it is the entry candle\'s time from the crosshair, which is approximate. Otherwise enter it, or leave it blank.'} Entry and exit prices are below.</div>
 <h2>Risk and exits</h2><div class="card">
 <label class="f" style="margin-top:0">Direction</label><div class="chips"><button type="button" class="chip ${t.dir==='Long'?'on':''}" data-dir="Long">Long</button><button type="button" class="chip ${t.dir==='Short'?'on':''}" data-dir="Short">Short</button></div>
 <div class="row"><div><label class="f">Entry price ${fl(t,'entry')}</label><input type="text" inputmode="decimal" id="entry" value="${esc(t.entry)}"></div><div><label class="f">Initial stop price</label><input type="text" inputmode="decimal" id="stop" value="${esc(t.stop)}"></div></div>
@@ -311,7 +331,7 @@ function drawSheet(c,t,done){const W=2400,RH=50,F=26,pad=14;let Lw=Math.round(W*
  const Rw=W-Lw,tw=Rw-2*pad,notes=cfg.notes.filter(([k])=>t.notes[k]);
  g0.font='400 '+F+'px DINish, sans-serif';let rh=RH+pad;for(const [k,l] of notes){rh+=F+8+lines(g0,U(t.notes[k]),tw).length*(F+6)+pad}
  const lh=rows.reduce((s,r)=>s+r.h,0),bodyH=Math.max(lh,rh,RH*9);
- const draw=img=>{const ih=img?Math.round(W*img.naturalHeight/img.naturalWidth):0;c.width=W;c.height=ih+bodyH;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,W,c.height);if(img)g.drawImage(img,0,0,W,ih);
+ const draw=ims=>{const two=ims.length===2,band=two?56:0,hw=W/2,ih=ims.length?(two?band+Math.max(...ims.map(m=>Math.round(hw*m.naturalHeight/m.naturalWidth))):Math.round(W*ims[0].naturalHeight/ims[0].naturalWidth)):0;c.width=W;c.height=ih+bodyH;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,W,c.height);if(two){ims.forEach((m,k)=>g.drawImage(m,k*hw,band,hw,Math.round(hw*m.naturalHeight/m.naturalWidth)));g.fillStyle='#000';g.font='700 30px DINish, sans-serif';g.textBaseline='middle';g.textAlign='center';g.fillText('CHART SCREENSHOT - ENTRY POSITION',hw/2,band/2);g.fillText('CHART SCREENSHOT - EXIT POSITION',hw+hw/2,band/2);g.strokeStyle='#000';g.lineWidth=3;g.beginPath();g.moveTo(hw,0);g.lineTo(hw,ih);g.moveTo(0,band);g.lineTo(W,band);g.stroke()}else if(ims.length)g.drawImage(ims[0],0,0,W,ih);
   g.strokeStyle='#000';g.fillStyle='#000';g.lineWidth=3;g.textBaseline='middle';
   const box=(x,y,on)=>{const z=F-6;g.strokeRect(x,y-z/2,z,z);if(on){g.beginPath();g.moveTo(x+4,y-z/2+4);g.lineTo(x+z-4,y+z/2-4);g.moveTo(x+z-4,y-z/2+4);g.lineTo(x+4,y+z/2-4);g.stroke()}return z};
   g.strokeRect(1.5,ih+1.5,Lw,bodyH-3);g.strokeRect(Lw+1.5,ih+1.5,Rw-3,bodyH-3);
@@ -329,7 +349,7 @@ function drawSheet(c,t,done){const W=2400,RH=50,F=26,pad=14;let Lw=Math.round(W*
    else if(r.text){r.ls.forEach((l,k)=>g.fillText(l,pad,cyl(k)))}
    ry+=r.h}
   done&&done(c)};
- if(t.img){const i=new Image();i.onload=()=>draw(i);i.src=t.img}else draw(null)}
+ {const srcs=[t.img,t.img2].filter(Boolean);if(!srcs.length)draw([]);else Promise.all(srcs.map(u=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=u}))).then(a=>draw(a.filter(Boolean)))}}
 async function shareSheet(t){const c=document.createElement('canvas');drawSheet(c,t,async cv0=>{const cv=document.createElement('canvas');cv.width=cv0.width;cv.height=cv0.height+90;const fg=cv.getContext('2d');fg.fillStyle='#fff';fg.fillRect(0,0,cv.width,cv.height);fg.drawImage(cv0,0,0);fg.fillStyle='#000';fg.font='400 28px DINish, sans-serif';fg.textAlign='center';fg.textBaseline='middle';fg.fillText('\u00a9 Margin Freeman 2026  |  MIRR\u2022R',cv.width/2,cv0.height+45);cv.toBlob(async b=>{const f=new File([b],'journal-'+(t.num||t.date)+'.png',{type:'image/png'});if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f]})}catch{}}else{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=f.name;a.click()}})})}
 
 // ---------- events ----------
@@ -341,15 +361,17 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button,[da
  else if(d.dir){readForm();view.t.dir=view.t.dir===d.dir?'':d.dir;render();syncRR()}
  else if(b.id==='addexit'){readForm();view.t.exits.push({p:'',s:''});render()}
  else if(b.id==='shareimg'){shareSheet(view.t)}
- else if(b.id==='candfin'){readForm();const c=view.cand,t=view.t;if(c){t.dir=c.dir;t.entry=c.entry;if(c.exits&&c.exits.length)t.exits=c.exits.map(e=>({p:e.p,s:e.s}));t.auto=t.auto||{};t.auto.dir=1;t.auto.entry=1;t.auto.exits=1}render()}
- else if(b.id==='candtime'){readForm();const c=view.cand,t=view.t;if(c&&c.ttime){t.ttime=c.ttime;if(c.date)t.date=c.date;t.auto=t.auto||{};t.auto.ttime=1}render()}
- else if(b.id==='canddis'){view.cand=null;render()}
+ else if(b.id==='candfin'){readForm();const r=combine(),t=view.t;t.auto=t.auto||{};if(r.entry){t.dir=r.dir;t.entry=r.entry;t.auto.dir=1;t.auto.entry=1;if(r.qty!=null){t.qty=String(r.qty);t.auto.qty=1}}if(r.exitP){t.exits=[{p:r.exitP,s:r.exitQ==null?'':String(r.exitQ)}];t.auto.exits=1}render()}
+ else if(b.id==='candtk'){readForm();const r=combine(),t=view.t;if(r.tk){t.sym=r.tk;t.auto=t.auto||{};t.auto.sym=1}render()}
+ else if(b.id==='candtime'){readForm();const r=combine(),t=view.t;if(r.eTime){t.ttime=r.eTime;if(r.eDate)t.date=r.eDate;t.auto=t.auto||{};t.auto.ttime=1}render()}
+ else if(b.id==='canddis'){view.scans=null;render()}
  else if(b.id==='back'){view={name:'list'};render()}
  else if(b.id==='edit'){view={name:'edit',t:structuredClone(view.t)};render()}
  else if(b.id==='cancel'){view={name:'list'};render()}
  else if(b.id==='save'){readForm();const i=trades.findIndex(x=>x.id===view.t.id);i<0?trades.push(view.t):trades[i]=view.t;await save();view={name:'list'};render()}
  else if(b.id==='del'){if(confirm('Delete this trade?')){trades=trades.filter(x=>x.id!==view.t.id);await save();view={name:'list'};render()}}
- else if(b.id==='pick'){readForm();document.getElementById('file').click()}
+ else if(b.id==='pick'){readForm();view.role='entry';document.getElementById('file').click()}
+ else if(b.id==='pick2'){readForm();view.role='exit';document.getElementById('file').click()}
  else if(d.res){readForm();view.t.result=view.t.result===d.res?'':d.res;render()}
  else if(d.g){readForm();const t=view.t,g=[...cfg.groups,...cfg.extra].find(x=>x.id===d.g),cur=t.pick[d.g]||[];t.pick[d.g]=cur.includes(d.o)?cur.filter(x=>x!==d.o):(g.multi?[...cur,d.o]:[d.o]);const y=scrollY;render();scrollTo(0,y)}
  else if(b.id==='exp'){const blob=new Blob([JSON.stringify({copyright:'\u00a9 Margin Freeman 2026  |  MIRR\u2022R',trades,cfg},null,1)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='trade-journal-'+today()+'.json';a.click()}
@@ -357,11 +379,10 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button,[da
  else if(b.id==='svset'){document.querySelectorAll('[data-gl]').forEach(i=>cfg.groups.find(g=>g.id===i.dataset.gl).label=i.value.trim()||'Untitled');document.querySelectorAll('[data-go2]').forEach(i=>cfg.groups.find(g=>g.id===i.dataset.go2).opts=i.value.split(',').map(s=>s.trim()).filter(Boolean));await save();alert('Saved')}
 });
 document.addEventListener('input',e=>{if(view.name==='edit'&&e.target.closest('#app')&&e.target.matches('#entry,#stop,#tp,#fees,#ppp,[data-exp],[data-exs]'))syncRR()});
-document.getElementById('file').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const big=URL.createObjectURL(f);view.t.img=await shrink(f,1400);view.scan='Reading screenshot...';render();const set=m=>{view.scan=m;const s=document.getElementById('scan');if(s)s.textContent=m};
- try{const r=await readShot(big,set),t=view.t,fd=r.found;readForm();t.auto={};
-  if(fd.symbol){t.sym=fd.symbol;t.auto.sym=1}
-  view.cand=fd.fill||null;
-  const n=Object.keys(fd).filter(k=>k!=='fill').length;view.scan=n?'Filled what could be read. Yellow fields came from the screenshot. Please confirm them. Anything not readable, such as the time, contracts, stop or target, is left blank for you to enter. Time is only filled when the crosshair sits on the entry arrow. Grade, states and notes are yours to enter.':(fd.fill?'Order arrows found. Nothing was filled. Review the suggestion below and tap to use it.':'Could not read trade details from this screenshot. Fill in the fields manually.')}
+document.getElementById('file').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const role=view.role==='exit'?'exit':'entry',big=URL.createObjectURL(f);readForm();view.t[role==='exit'?'img2':'img']=await shrink(f,1400);view.scan='Reading '+role+' screenshot...';render();const set=m=>{view.scan=m;const s=document.getElementById('scan');if(s)s.textContent=m};
+ view.scans=view.scans||{};
+ try{const r=await readShot(big,set),fd=r.found;view.scans[role]={cand:fd.cand||null,tk:fd.tickerCand||''};
+  view.scan='Nothing has been filled. Review the suggestion below and tap what you want to use. Grade, states and notes are yours to enter.'}
  catch(err){view.scan='Could not run the screenshot reader (needs internet the first time). Fill in the fields manually.'}render()};
 document.getElementById('imp').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!Array.isArray(j.trades))throw 0;if(!confirm('Import '+j.trades.length+' trades? Matching trades are overwritten and the others are kept.'))return;const m=new Map(trades.map(t=>[t.id,t]));j.trades.forEach(t=>m.set(t.id,t));trades=[...m.values()];await save();view={name:'list'};render()}catch{alert('That file is not a journal backup.')}e.target.value=''};
 
@@ -457,8 +478,8 @@ async function stack(note){const list=stackOrder();if(!list.length){alert('No tr
  // layout
  const pages=[[]];let y=PH-M;const place=[];
  imgs.forEach((im,i)=>{let h=CW*im.H/im.W,w=CW;if(h>PHc){h=PHc;w=PHc*im.W/im.H}
-  if(y-h<M+16&&pages[pages.length-1].length){pages.push([]);y=PH-M}
-  pages[pages.length-1].push({i,x:M,y:y-h,w,h});y-=h+8});
+  if(pages[pages.length-1].length){pages.push([]);y=PH-M}
+  pages[pages.length-1].push({i,x:M+(CW-w)/2,y:y-h,w,h});y-=h+8});
  // object numbering: 1 catalog, 2 pages, 3.. images, then per page: content, page
  const imgBase=3,nImg=imgs.length;let n=imgBase+nImg;const pageObjs=pages.map(()=>{const c=n++,p=n++;return{c,p}});
  push('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
@@ -471,7 +492,7 @@ async function stack(note){const list=stackOrder();if(!list.length){alert('No tr
  const total=n,xr=pos;push('xref\n0 '+total+'\n0000000000 65535 f \n');for(let k=1;k<total;k++)push(String(offs[k]).padStart(10,'0')+' 00000 n \n');
  push('trailer\n<< /Size '+total+' /Root 1 0 R >>\nstartxref\n'+xr+'\n%%EOF');
  const blob=new Blob(chunks,{type:'application/pdf'}),name='journal-trade-images-'+today()+'.pdf';
- if(note)note.textContent=list.length+' trades, '+pages.length+' page'+(pages.length>1?'s':'')+', Trade '+(list[0].num||list[0].date)+' first. Each trade image is whole, never cropped or split across pages.';
+ if(note)note.textContent=list.length+' trades, '+pages.length+' page'+(pages.length>1?'s':'')+', Trade '+(list[0].num||list[0].date)+' first. One trade per page, each shown whole and never cropped or stretched.';
  const f=new File([blob],name,{type:'application/pdf'});if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f]})}catch{}}else saveBlob(blob,name);
  return}
 document.addEventListener('click',async e=>{const b=e.target.closest&&e.target.closest('[data-exp]');if(!b)return;const k=b.dataset.exp,note=document.getElementById('expnote');
