@@ -18,7 +18,7 @@ window.readShot=async function(url,onStep){
  step('Loading reader (first time downloads about 10 MB)...');const w=await worker();
  step('Reading header...');
  const head=await ocr(w,toCanvas(img,[0,0,W*.6,H*.07],4,false),6);out.raw.header=head;
- const sym=head.match(/\b([A-Z]{1,5}[0-9]?!)/);if(sym)out.found.symbol=sym[1];
+ const sym=head.match(/\b([A-Z]{1,5}[0-9]?!)/);
  const tf=head.match(/\b(\d+[smhDWM])\b/);
  step('Reading time...');
  const bot='';
@@ -53,11 +53,8 @@ window.readShot=async function(url,onStep){
    if(pt&&pt.n>=3&&pt.second===0)best={price:pt.v,qty:(qt&&qt.n>=3&&qt.n>=votes.length*.6&&qt.second<=1)?+qt.v:null};
    if(best)arr.push({...c,...best});else unresolved++}
   arr.sort((a,b)=>a.ax-b.ax);out.raw.arrows=arr;
-  // abstain unless exactly one entry arrow, or one entry plus one opposite-side exit (no scale-ins, partials or extra fills)
-  const clean=arr.length===1||(arr.length===2&&arr[0].dir!==arr[1].dir);
-  if(arr.length&&!unresolved&&clean){
-   const entry=arr[0];
-   const f={dir:entry.dir==='buy'?'Long':'Short',entry:entry.price,qty:entry.qty,exits:arr.slice(1).filter(e=>e.dir!==entry.dir).map(e=>({p:e.price,s:e.qty==null?'':e.qty}))};
+  {
+   const cand={arrows:arr.map(x=>({dir:x.dir,price:x.price,qty:x.qty,ax:Math.round(x.ax)})),unresolved,W};
    // black cursor label: a wide near-black box in the lower part of the chart
    const dk=i=>D[i]<35&&D[i+1]<35&&D[i+2]<35;let box=null;
    for(let y=Math.round(H*.55);y<H*.95&&!box;y+=3){let run=0,start=0,last=-99;for(let x=0;x<=W;x+=2){const d=x<W&&dk((y*W+x)*4);if(d){if(!run)start=x;run=1;last=x}else if(run&&(x>=W||x-last>16)){const wd=last-start;if(wd>=Math.min(W,H)*.25&&wd<=Math.min(W,H)*.45){const mx=start+Math.round(wd/2);let y0=y,y1=y;while(y0>2&&dk(((y0-2)*W+start+4)*4))y0-=2;while(y1<H-3&&dk(((y1+2)*W+start+4)*4))y1+=2;if(y1-y0>=Math.min(W,H)*.02&&y1-y0<=Math.min(W,H)*.06)box={x:start,y:y0,w:wd,h:y1-y0}}run=0}}}
@@ -65,8 +62,11 @@ window.readShot=async function(url,onStep){
    if(box){const t=await ocr(w,toCanvas(img,[box.x+3,box.y+3,box.w-6,box.h-6],3,true),7,'');out.raw.cursorLine=t;
     const cmm=/(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2}),?\s+(20\d\d)\s+(\d{1,2}):(\d\d)\s*([AP])M/i.exec(t);
     const curX=box.x+box.w/2;
-    if(cmm&&Math.abs(curX-entry.ax)<=W*.02){let h=+cmm[4]%12;if(cmm[6].toUpperCase()==='P')h+=12;const MO=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
-     f.ttime=String(h).padStart(2,'0')+':'+cmm[5];f.date=cmm[3]+'-'+String(MO.indexOf(cmm[1].toLowerCase())+1).padStart(2,'0')+'-'+String(+cmm[2]).padStart(2,'0');f.how='cursor on entry arrow'}}
-   out.found.fill=f}
+    if(cmm){let h=+cmm[4]%12;if(cmm[6].toUpperCase()==='P')h+=12;const MO=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+     cand.cursor={x:Math.round(curX),time:String(h).padStart(2,'0')+':'+cmm[5],date:cmm[3]+'-'+String(MO.indexOf(cmm[1].toLowerCase())+1).padStart(2,'0')+'-'+String(+cmm[2]).padStart(2,'0')};
+     const hit=arr.filter(x=>Math.abs(x.ax-curX)<=W*.02);if(hit.length===1)cand.cursorArrow=arr.indexOf(hit[0])}}
+   out.found.cand=cand}
  }catch(e){out.raw.arrowErr=String(e)}
+ try{step('Reading symbol...');const sv=[];for(const sc of[3,4,5]){for(const inv of[false,true]){const t=(await ocr(w,toCanvas(img,[W*.0,H*.866,W*.2,H*.02],sc,inv),7,'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!.:')).replace(/\s/g,'');if(/^[A-Z][A-Z0-9.]{0,9}!?[0-9]?!?$/.test(t)&&t.length>=2)sv.push(t)}}
+  out.raw.symVotes=sv;const m={};sv.forEach(v=>m[v]=(m[v]||0)+1);const e=Object.entries(m).sort((a,b)=>b[1]-a[1]);if(e.length&&e[0][1]>=2&&(!e[1]||e[1][1]<e[0][1]))out.found.tickerCand=e[0][0]}catch(e){out.raw.symErr=String(e)}
  return out};
