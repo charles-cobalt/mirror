@@ -484,9 +484,10 @@ async function stack(note){const list=stackOrder();if(!list.length){alert('No tr
  const enc1=cv=>{const W=cv.width,H=cv.height,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,W,H);g.drawImage(cv,0,0);const url=c.toDataURL('image/jpeg',0.92),bin=atob(url.split(',')[1]),by=new Uint8Array(bin.length);for(let k=0;k<bin.length;k++)by[k]=bin.charCodeAt(k);c.width=c.height=1;return {by,W,H}};
  const fit=(im,rw,rh)=>{let w=rw,h=rw*im.H/im.W;if(h>rh){h=rh;w=rh*im.W/im.H}return{w,h}};
  for(let i=0;i<list.length;i++){const t=list[i];if(note)note.textContent='Rendering trade '+(i+1)+' of '+list.length+'...';
-  const pg=[],sc=await shots(t);
-  if(sc){const im=enc1(sc);sc.width=sc.height=1;imgs.push(im);const f=fit(im,CW,TOPH-4);pg.push({i:imgs.length-1,x:M+(CW-f.w)/2,y:PH-M-f.h,w:f.w,h:f.h})}
-  const md=await render(t),im2=enc1(md);md.width=md.height=1;imgs.push(im2);const f2=fit(im2,CW,BOTH);pg.push({i:imgs.length-1,x:M+(CW-f2.w)/2,y:MID-f2.h,w:f2.w,h:f2.h});
+  const pg=[],sc=await shots(t),md=await render(t),im2=enc1(md);md.width=md.height=1;
+  const BM=M+16,GAP=8,MINIMG=200,f2=fit(im2,CW,Math.min(CW*im2.H/im2.W,PH-M-BM-MINIMG-GAP));imgs.push(im2);const mi=imgs.length-1;
+  if(sc){const im=enc1(sc);sc.width=sc.height=1;imgs.push(im);const top=BM+f2.h+GAP,f=fit(im,CW,PH-M-top);pg.push({i:imgs.length-1,x:M+(CW-f.w)/2,y:PH-M-f.h,w:f.w,h:f.h})}
+  pg.push({i:mi,x:M+(CW-f2.w)/2,y:BM,w:f2.w,h:f2.h});
   pages.push(pg);await new Promise(r=>setTimeout(r,0))}
  const chunks=[],enc=s=>TE.encode(s);let pos=0;const push=x=>{const u=typeof x==='string'?enc(x):x;chunks.push(u);pos+=u.length};
  const offs=[];const obj=(n,body)=>{offs[n]=pos;push(n+' 0 obj\n');push(body);push('\nendobj\n')};
@@ -502,7 +503,7 @@ async function stack(note){const list=stackOrder();if(!list.length){alert('No tr
  const total=n,xr=pos;push('xref\n0 '+total+'\n0000000000 65535 f \n');for(let k=1;k<total;k++)push(String(offs[k]).padStart(10,'0')+' 00000 n \n');
  push('trailer\n<< /Size '+total+' /Root 1 0 R >>\nstartxref\n'+xr+'\n%%EOF');
  const blob=new Blob(chunks,{type:'application/pdf'}),name='journal-trade-images-'+today()+'.pdf';
- if(note)note.textContent=list.length+' trades, '+pages.length+' page'+(pages.length>1?'s':'')+', Trade '+(list[0].num||list[0].date)+' first. One trade per page: screenshots in the top half, notes in the bottom half. Nothing cropped or stretched.';
+ if(note)note.textContent=list.length+' trades, '+pages.length+' page'+(pages.length>1?'s':'')+', Trade '+(list[0].num||list[0].date)+' first. One trade per page: screenshots fill the space above the notes, which keep their full size. Nothing cropped or stretched.';
  const f=new File([blob],name,{type:'application/pdf'});if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f]})}catch{}}else saveBlob(blob,name);
  return}
 document.addEventListener('click',async e=>{const b=e.target.closest&&e.target.closest('[data-exp]');if(!b)return;const k=b.dataset.exp,note=document.getElementById('expnote');
