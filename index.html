@@ -98,8 +98,8 @@ input[type=date],input[type=time],input[type=datetime-local]{-webkit-appearance:
 @media (min-width:700px) and (hover:none){.card.trade:hover{border-color:inherit}}
 h1,.top>b{font-weight:700}.hd{display:flex;align-items:center;justify-content:center;margin:2px 0 6px}.hd .logo{all:unset;cursor:pointer;display:block;-webkit-tap-highlight-color:transparent;padding:6px 16px}.hd .logo:focus-visible{outline:1px solid #666}.hd svg{flex:0 0 auto;display:block}h2,.card>b:first-child{font-weight:600}.btn,.chip.on,.stat b{font-weight:700}button,input,textarea,select{font-family:inherit}
 #rrbox:empty{display:none}
-html{overscroll-behavior-y:contain}</style></head><body><div id="app"></div>
-<nav id="nav"></nav><button class="fab" id="fab" aria-label="New trade">+</button>
+html{overscroll-behavior-y:contain}@media (min-width:700px){#sortb{left:calc(50% - 390px + 24px)!important}#sortl{left:calc(50% - 390px + 76px)!important}}@media (min-width:1100px){#sortb{left:calc(50% - 520px + 24px)!important}#sortl{left:calc(50% - 520px + 76px)!important}}</style></head><body><div id="app"></div>
+<nav id="nav"></nav><button class="fab" id="fab" aria-label="New trade">+</button><button class="fab" id="sortb" aria-label="Sort trades" style="right:auto;left:16px">&#9670;</button><span id="sortl" style="position:fixed;z-index:10;left:68px;bottom:calc(env(safe-area-inset-bottom) + 78px);height:44px;display:flex;align-items:center;font-size:11px;letter-spacing:.04em;color:var(--mu);pointer-events:none"></span>
 <input type="file" id="file" accept="image/*" hidden><input type="file" id="imp" accept=".json,application/json" hidden>
 <script src="ocr.js"></script>
 <script>
@@ -177,10 +177,25 @@ function syncRR(){const t=view.t;readForm();const b=document.getElementById('rrb
 // ---------- views ----------
 const icons={list:'<g transform="translate(0,0.3)"><path d="M64 256Q256 70 448 256Q256 106 64 256Z" fill="currentColor"/><path d="M194 256A62 62 0 0 1 318 256" stroke="currentColor" stroke-width="20"/><path d="M230 256A26 26 0 0 1 282 256Z" fill="currentColor"/></g><g transform="translate(0,-0.3) translate(0,256) scale(1,-1) translate(0,-256)"><path d="M64 256Q256 70 448 256Q256 106 64 256Z" fill="currentColor"/><path d="M194 256A62 62 0 0 1 318 256" stroke="currentColor" stroke-width="20"/><path d="M230 256A26 26 0 0 1 282 256Z" fill="currentColor"/></g>',stats:'<path d="M64 256.3Q256 70 448 256.3Q256 106 64 256.3Z" fill="currentColor"/><path d="M64 255.7Q256 442 448 255.7Q256 406 64 255.7Z" fill="currentColor"/>',set:'<circle cx="256" cy="256" r="62" stroke="currentColor" stroke-width="20"/><circle cx="256" cy="256" r="26" fill="currentColor"/>'};const iconVB={list:'32 32 448 448',stats:'32 32 448 448',set:'110 110 292 292'};
 function nav(){const n=[['list','Trades'],['stats','Stats'],['set','Settings']];document.getElementById('nav').innerHTML=n.map(([k,l])=>`<button class="${view.name===k?'on':''}" data-go="${k}"><svg viewBox="${iconVB[k]}">${icons[k]}</svg>${l}</button>`).join('');
- document.getElementById('nav').style.display=['edit','detail'].includes(view.name)?'none':'';document.getElementById('fab').style.display=['edit','detail','stats','set'].includes(view.name)?'none':''}
+ document.getElementById('nav').style.display=['edit','detail'].includes(view.name)?'none':'';document.getElementById('fab').style.display=['edit','detail','stats','set'].includes(view.name)?'none':'';if(view.name!=='list'){const b=document.getElementById('sortb'),l=document.getElementById('sortl');if(b)b.style.display=l.style.display='none'}}
 const pill=r=>r==='profit'?'<span class="pill p-profit">PROFIT</span>':r==='loss'?'<span class="pill p-loss">LOSS</span>':r==='be'?'<span class="pill p-none">BREAKEVEN</span>':'<span class="pill p-none">OPEN</span>';
 let lastV='',lastId=null;function render(){try{if(cfg&&!cfg.theme){const o=localStorage.getItem('mm_theme');if(!localStorage.getItem('mm_theme_m')){localStorage.setItem('mm_theme_m','1');if(o){cfg.theme=o;save()}}}applyTheme()}catch(e){}const a=document.getElementById('app');const keep=view.name==='edit'&&lastV==='edit'&&lastId===(view.t&&view.t.id),y0=window.scrollY;lastV=view.name;lastId=view.t&&view.t.id;nav();({list:rList,stats:rStats,set:rSet,edit:rEdit,detail:rDetail})[view.name](a);if(view.name==='detail')drawSheet(document.getElementById('sheet'),view.t);window.scrollTo(0,keep?y0:0)}
-function rList(a){const s=[...trades].sort((x,y)=>y.date.localeCompare(x.date)||y.id.localeCompare(x.id));
+const SORTS=[['date','Trade date'],['num','Trade #'],['opened','Last opened'],['mod','Last modified'],['result','Result'],['rr','R:R']];
+const sortI=()=>{try{const i=+localStorage.getItem('mm_sort');return i>=0&&i<SORTS.length?i:0}catch(e){return 0}};
+const openedOf=t=>{try{return (JSON.parse(localStorage.getItem('mm_open')||'{}'))[t.id]||0}catch(e){return 0}};
+const modOf=t=>t.mod||parseInt(t.id,36)||0;
+function sortTrades(arr){const k=SORTS[sortI()][0],dd=(x,y)=>y.date.localeCompare(x.date)||y.id.localeCompare(x.id);
+ const numv=t=>{const n=parseFloat(t.num);return isNaN(n)?null:n};
+ const rk={profit:0,be:1,loss:2};
+ const by=({date:dd,
+  num:(x,y)=>{const a=numv(x),b=numv(y);return a==null&&b==null?dd(x,y):a==null?1:b==null?-1:b-a||dd(x,y)},
+  opened:(x,y)=>openedOf(y)-openedOf(x)||dd(x,y),
+  mod:(x,y)=>modOf(y)-modOf(x)||dd(x,y),
+  result:(x,y)=>(rk[x.result]??3)-(rk[y.result]??3)||dd(x,y),
+  rr:(x,y)=>{const a=rOf(x),b=rOf(y);return a==null&&b==null?dd(x,y):a==null?1:b==null?-1:b-a||dd(x,y)}})[k];
+ return [...arr].sort(by)}
+function sortUI(){const b=document.getElementById('sortb'),l=document.getElementById('sortl');if(!b)return;const on=view.name==='list'&&trades.length>1;b.style.display=on?'':'none';l.style.display=on?'flex':'none';l.textContent=SORTS[sortI()][1]}
+function rList(a){const s=sortTrades(trades);sortUI();
  a.innerHTML=HD('')+(s.length?s.map(t=>`<div class="card trade" data-open="${t.id}">${t.img?`<img src="${t.img}">`:'<img alt="">'}<div class="m"><div class="t">${t.num?'#'+esc(t.num)+' · ':''}${esc(t.date)}${etTime(t)?' · '+esc(etTime(t)):''}</div><div class="s">${esc([t.sym,t.grade?'Grade '+t.grade:''].filter(Boolean).join(' · '))}${t.target?' · Target '+esc(t.target):''}${t.actual?' · Actual R:R '+esc(t.actual):''}</div></div>${pill(t.result)}</div>`).join(''):'<div class="empty">No trades yet.<br>Tap + to log your first one.</div>')}
 const LOGO=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="60 66 392 290" width="76" height="56" role="img" aria-label="MIRR•R logo"><defs><linearGradient id="fade" gradientUnits="userSpaceOnUse" x1="0" y1="259" x2="0" y2="344"><stop offset="0" stop-color="#f2f2f2" stop-opacity="0.2"/><stop offset="1" stop-color="#f2f2f2" stop-opacity="0"/></linearGradient><linearGradient id="hf" gradientUnits="userSpaceOnUse" x1="76" y1="0" x2="436" y2="0"><stop offset="0" stop-color="#000"/><stop offset="0.3" stop-color="#aaa"/><stop offset="0.5" stop-color="#fff"/><stop offset="0.7" stop-color="#aaa"/><stop offset="1" stop-color="#000"/></linearGradient><mask id="h" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512"><rect width="512" height="512" fill="url(#hf)"/></mask><clipPath id="cu"><rect x="0" y="0" width="512" height="256"/></clipPath><clipPath id="cl"><rect x="0" y="256" width="512" height="256"/></clipPath></defs><path d="M64 256Q256 70 448 256Q256 106 64 256Z" fill="#f2f2f2"/><path d="M194 256A62 62 0 0 1 318 256" fill="none" stroke="#f2f2f2" stroke-width="20"/><path d="M230 256A26 26 0 0 1 282 256Z" fill="#f2f2f2"/><g mask="url(#h)"><g transform="translate(0,3) translate(0,256) scale(1,0.8) translate(0,-256)"><path d="M64 256Q256 442 448 256Q256 406 64 256Z" fill="url(#fade)"/><path d="M194 256A62 62 0 0 0 318 256" fill="none" stroke="url(#fade)" stroke-width="20"/><path d="M230 256A26 26 0 0 0 282 256Z" fill="url(#fade)"/></g></g></svg>`;const HD=t=>`<div class="hd"><button type="button" class="logo" data-go="list" aria-label="Home (Trades)">${LOGO}</button></div>${t?`<h1>${t}</h1>`:''}`;
 // ---------- Stats: metrics, equity curve, calendar, sessions ----------
@@ -377,8 +392,9 @@ async function shareSheet(t){const c=document.createElement('canvas');drawSheet(
 function readForm(){const t=view.t;for(const k of['date','num','acc','grade','target','actual','sym','ttime','ttz','sess','ctime','cx','entry','stop','tp','fees','ppp']){const e=document.getElementById(k);if(e)t[k]=e.value}document.querySelectorAll('[data-n]').forEach(e=>t.notes[e.dataset.n]=e.value);if(document.querySelector('[data-exp]')){t.exits=[...document.querySelectorAll('[data-exp]')].map((e,i)=>({p:e.value,s:(document.querySelector('[data-exs="'+i+'"]')||{}).value||''}))}}
 document.addEventListener('click',async e=>{const b=e.target.closest('button,[data-open]');if(!b)return;const d=b.dataset;
  if(d.go){view={name:d.go};render()}
+ else if(b.id==='sortb'){try{localStorage.setItem('mm_sort',String((sortI()+1)%SORTS.length))}catch(e){}render()}
  else if(b.id==='fab'){view={name:'edit',t:blank(),isNew:true};render()}
- else if(d.open){view={name:'detail',t:trades.find(x=>x.id===d.open)};render()}
+ else if(d.open){try{const o=JSON.parse(localStorage.getItem('mm_open')||'{}');o[d.open]=Date.now();localStorage.setItem('mm_open',JSON.stringify(o))}catch(e){}view={name:'detail',t:trades.find(x=>x.id===d.open)};render()}
  else if(d.dir){readForm();view.t.dir=view.t.dir===d.dir?'':d.dir;render();syncRR()}
  else if(b.id==='addexit'){readForm();view.t.exits.push({p:'',s:''});render()}
  else if(b.id==='shareimg'){shareSheet(view.t)}
@@ -390,7 +406,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button,[da
  else if(b.id==='back'){view={name:'list'};render()}
  else if(b.id==='edit'){view={name:'edit',t:structuredClone(view.t)};render()}
  else if(b.id==='cancel'){view={name:'list'};render()}
- else if(b.id==='save'){readForm();const i=trades.findIndex(x=>x.id===view.t.id);i<0?trades.push(view.t):trades[i]=view.t;await save();view={name:'list'};render()}
+ else if(b.id==='save'){readForm();view.t.mod=Date.now();const i=trades.findIndex(x=>x.id===view.t.id);i<0?trades.push(view.t):trades[i]=view.t;await save();view={name:'list'};render()}
  else if(b.id==='del'){if(confirm('Delete this trade?')){trades=trades.filter(x=>x.id!==view.t.id);await save();view={name:'list'};render()}}
  else if(b.id==='pick'){readForm();view.role='entry';document.getElementById('file').click()}
  else if(b.id==='rm1'){readForm();if(confirm('Remove the entry screenshot from this trade?')){view.t.img='';if(view.scans)delete view.scans.entry;render()}}
