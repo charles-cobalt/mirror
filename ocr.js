@@ -45,16 +45,24 @@ window.readShot=async function(url,onStep){
     const M=Math.min(W,H);if(h1>=20&&h1<=54&&w1>=14&&w1<=40&&h1/w1>=1.12&&h1/w1<=1.65&&fill>.2&&fill<.42)comps.push({dir,ax:(x0+x1)/2*st,ay:(y0+y1)/2*st,w:w1,h:h1})}}
   out.raw.comps=comps.length;
   const arr=[];
-  let unresolved=0;
+  const pend=[];
   const parse=t=>{const pm=/@\s*([\d,]{4,}\.\d{2})/.exec(t);if(!pm)return null;const rest=t.replace(pm[0],' ');const nums=rest.match(/\b\d{1,3}\b/g)||[];if(nums.length!==1)return null;return {qty:+nums[0],price:pm[1].replace(/,/g,'')}};
   for(const c of comps){let best=null;
    const sgn=c.dir==='sell'?-1:1; // TradingView draws sell labels above the bar and buy labels below it
    const cy=c.ay+sgn*c.h*1.6,bh=c.h*1.15,bw=c.h*8.4;const bx=[Math.max(0,c.ax-bw/2),Math.max(0,cy-bh/2),Math.min(bw,W-Math.max(0,c.ax-bw/2)),bh];
-   const votes=[];for(const sc2 of[3,4,5,2]){for(const inv of[false,true]){const dd=await ocrD(w,toCanvas(img,bx,sc2,inv),7,'0123456789@., ');const t=dd.text,qd=qtyFrom(dd)??qtyFrom(dd,1);(out.raw.crops=out.raw.crops||[]).push([c.dir,Math.round(c.ax),sc2,inv,t.trim()]);let pmm=/@\s*([\d,]{4,}\.\d{2})/.exec(t);if(!pmm){const q2=/@\s*(\d{5})(\d{2})(?!\d)/.exec(t);if(q2)pmm=[q2[0],q2[1]+'.'+q2[2]]}if(!pmm)continue;const nums=(t.replace(pmm[0],' ').match(/\b\d{1,3}\b/g)||[]);votes.push({price:pmm[1].replace(/,/g,''),qty:qd==null?null:+qd})}}
+   const votes=[],texts=[];for(const sc2 of[3,4,5,2]){for(const inv of[false,true]){const dd=await ocrD(w,toCanvas(img,bx,sc2,inv),7,'0123456789@., ');const t=dd.text,qd=qtyFrom(dd)??qtyFrom(dd,1);texts.push({t,qd});(out.raw.crops=out.raw.crops||[]).push([c.dir,Math.round(c.ax),sc2,inv,t.trim()]);let pmm=/@\s*([\d,]{4,}\.\d{2})/.exec(t);if(!pmm){const q2=/@\s*(\d{5})(\d{2})(?!\d)/.exec(t);if(q2)pmm=[q2[0],q2[1]+'.'+q2[2]]}if(!pmm)continue;const nums=(t.replace(pmm[0],' ').match(/\b\d{1,3}\b/g)||[]);votes.push({price:pmm[1].replace(/,/g,''),qty:qd==null?null:+qd})}}
    const top=(arr2)=>{const m={};arr2.forEach(v=>{m[v]=(m[v]||0)+1});const e=Object.entries(m).sort((a,b)=>b[1]-a[1]);return e.length?{v:e[0][0],n:e[0][1],second:e[1]?e[1][1]:0}:null};
    const pt=top(votes.map(v=>v.price)),qt=top(votes.filter(v=>v.qty!=null).map(v=>String(v.qty)));
-   if(pt&&pt.n>=3&&pt.second===0)best={price:pt.v,qty:(qt&&qt.n>=3&&qt.n>=votes.length*.6&&qt.second<=1)?+qt.v:null};
-   if(best)arr.push({...c,...best});else unresolved++}
+   if(pt&&pt.n>=3&&pt.second===0)best={price:pt.v,qty:(qt&&qt.n>=3&&qt.n>=votes.length*.45&&qt.second<=1)?+qt.v:null};
+   if(best)arr.push({...c,...best});else pend.push({c,texts})}
+  // second pass: use the prices that did resolve as a reference (same chart = same digit count and leading digit)
+  const peers=arr.map(x=>x.price);let unresolved=0;
+  for(const {c,texts} of pend){let ok=false;if(peers.length){const L=peers[0].split('.')[0].length,lead=peers[0][0],med=peers.map(Number).sort((a,b)=>a-b)[peers.length>>1];
+   const norm=t=>{const m=/@\s*([\d.,\s]{5,})/.exec(t);if(!m)return null;const q=m[1].replace(/[\s,]/g,'');let ip,dp;let mm=/^(\d+)\.(\d{2})$/.exec(q);if(mm){ip=mm[1];dp=mm[2]}else if(/^\d+$/.test(q)){if(q.length===L+2){ip=q.slice(0,L);dp=q.slice(L)}else if(q.length===L+3){ip=q.slice(0,L);dp=q.slice(L+1)}}if(!ip||ip.length!==L)return null;if(ip[0]==='8'&&lead==='3')ip='3'+ip.slice(1);const v=+(ip+'.'+dp);return Math.abs(v-med)/med<.02?ip+'.'+dp:null};
+   const pv=texts.map(x=>norm(x.t)).filter(Boolean),qv=texts.map((x,i)=>norm(x.t)&&x.qd!=null?String(x.qd):null).filter(Boolean);
+   const top2=a=>{const m={};a.forEach(v=>{m[v]=(m[v]||0)+1});const e=Object.entries(m).sort((x,y)=>y[1]-x[1]);return e.length?{v:e[0][0],n:e[0][1],second:e[1]?e[1][1]:0}:null};
+   const p2=top2(pv),q2=top2(qv);if(p2&&p2.n>=3&&p2.second===0){arr.push({...c,price:p2.v,qty:(q2&&q2.n>=2&&q2.second<=1)?+q2.v:null,fixed:1});ok=true}}
+   if(!ok)unresolved++}
   arr.sort((a,b)=>a.ax-b.ax);out.raw.arrows=arr;
   {
    const cand={arrows:arr.map(x=>({dir:x.dir,price:x.price,qty:x.qty,ax:Math.round(x.ax)})),unresolved,W};
