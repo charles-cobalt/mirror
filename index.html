@@ -275,7 +275,7 @@ function combine(){const S=view.scans||{},E=S.entry,X=S.exit,r={notes:[]},n=r.no
  const pick=(sh,role)=>{if(!sh)return null;const c=sh.cand;if(!c){n.push('The '+role+' screenshot could not be read.');return null}
   if(c.unresolved){n.push('In the '+role+' screenshot an order arrow was found but its label could not be read, so another arrow may be hiding. Nothing taken from it.');return null}
   if(c.cursorArrow==null){n.push('In the '+role+' screenshot the crosshair is not on an order arrow, so I cannot tell which order is the '+role+'. Move the crosshair onto the '+role+' candle and send it again.');return null}
-  const a=c.arrows[c.cursorArrow];if(c.arrows.some((o,i)=>i!==c.cursorArrow&&o.dir===a.dir)){n.push('The '+role+' screenshot shows more than one '+(a.dir==='buy'?'buy':'sell')+' arrow (scale-in, partial or several fills). Enter those by hand.');return null}
+  const a=c.arrows[c.cursorArrow];if(c.arrows.some((o,i)=>i!==c.cursorArrow&&o.dir===a.dir)){n.push('The '+role+' screenshot shows more than one '+(a.dir==='buy'?'buy':'sell')+' arrow (scale-in, partial or several fills). See the trade list below.');return null}
   return {a,c}};
  const e=pick(E,'entry'),x=pick(X,'exit');
  if(e){r.dir=e.a.dir==='buy'?'Long':'Short';r.entry=e.a.price;r.qty=e.a.qty;if(e.c.cursor){r.eTime=e.c.cursor.time;r.eDate=e.c.cursor.date}}
@@ -291,7 +291,44 @@ function combine(){const S=view.scans||{},E=S.entry,X=S.exit,r={notes:[]},n=r.no
  const t1=E&&E.tk,t2=X&&X.tk;if(t1&&t2&&t1!==t2)n.push('The two screenshots show different symbols ('+t1+' and '+t2+'). Ticker not suggested.');else if(t1||t2){r.tk=t1||t2;if(!(t1&&t2))n.push('Ticker was read from one screenshot only.')}
  if(!r.dir||r.dirFromExit&&!e){r.dirOnly=1}
  return r}
-function candCard(){const S=view.scans;if(!S||!(S.entry||S.exit))return '';const r=combine(),has=r.entry||r.exitP||r.tk||r.eTime;
+
+function candCard(){return candCard0()+multiCards()}
+// ---- multi-fill reading: first visible arrow opens the trade, opposite arrows close it by contract math ----
+function analyzeFills(c){
+ const R={trades:[],notes:[],incomplete:false};if(!c||!c.arrows||!c.arrows.length)return R;
+ if(c.unresolved){R.incomplete=true;R.notes.push('At least one order label could not be read (labels overlap or are hidden), so this list may be incomplete. Nothing was guessed.')}
+ const A=[...c.arrows].sort((a,b)=>a.ax-b.ax),G=[];
+ for(const a of A){const g=G[G.length-1];if(g&&Math.abs(a.ax-g.ax)<=6)g.arrows.push(a);else G.push({ax:a.ax,arrows:[a]})}
+ const sg=a=>a.dir==='buy'?1:-1,avg=f=>{const q=f.reduce((s,x)=>s+x.q,0);return q?f.reduce((s,x)=>s+x.p*x.q,0)/q:null},fmt=n=>n==null?'':String(+n.toFixed(4));
+ let net=0,cur=null;
+ const close=()=>{if(!cur)return;cur.entry=fmt(avg(cur.entryFills));cur.qty=cur.entryFills.reduce((s,x)=>s+x.q,0);cur.exitAvg=fmt(avg(cur.exitFills));R.trades.push(cur);cur=null};
+ for(const g of G){
+  if(g.arrows.some(a=>a.qty==null)){R.incomplete=true;R.notes.push('An arrow was found but its contract count could not be read, so the contract math stops there. Enter the rest by hand.');break}
+  const dirs=new Set(g.arrows.map(a=>a.dir));
+  if(dirs.size>1&&net===0&&g.arrows.reduce((s,a)=>s+sg(a)*a.qty,0)===0){const bu=g.arrows.filter(a=>a.dir==='buy').map(a=>({p:+a.price,q:a.qty})),se=g.arrows.filter(a=>a.dir==='sell').map(a=>({p:+a.price,q:a.qty}));
+   R.trades.push({ambig:true,buys:bu,sells:se,closed:true});R.notes.push('Trade '+R.trades.length+' has its buy and sell on the same candle, so the screenshot cannot show which came first. Pick Long or Short yourself if you remember.');continue}
+  if(dirs.size>1){R.incomplete=true;R.notes.push('A buy and a sell sit on the same candle ('+g.arrows.map(a=>a.dir+' '+a.price).join(', ')+'). The screenshot cannot show which came first, so the trade direction and the rest after it are not read.');break}
+  let stop=false;
+  for(const a of g.arrows){const s=sg(a)*a.qty,p=+a.price;
+   if(net===0){cur={dir:a.dir==='buy'?'Long':'Short',entryFills:[{p,q:a.qty}],exitFills:[],closed:false};net=s}
+   else if(Math.sign(s)===Math.sign(net)){cur.entryFills.push({p,q:a.qty});net+=s}
+   else{if(Math.abs(s)>Math.abs(net)){R.incomplete=true;R.notes.push('An arrow at '+a.price+' closes more contracts than were open ('+Math.abs(net)+'), which would flip the position. Not read further.');stop=true;break}
+    cur.exitFills.push({p,q:a.qty});net+=s;if(net===0){cur.closed=true;close()}}}
+  if(stop)break}
+ if(cur){cur.open=true;close()}
+ if(R.trades.length>1)R.notes.push('This screenshot contains '+R.trades.length+' trades back to back. Log them one at a time and attach this same screenshot to each.');
+ if(R.trades.some(t=>t.open))R.notes.push('The last trade is still open at the right edge of the screenshot (no closing arrow yet).');
+ R.notes.push('The first arrow on the left is taken as the entry. If the chart is cut off and the real entry is off screen, check this.');
+ return R}
+function multiCards(){const S=view.scans;if(!S)return '';let out='';
+ for(const role of ['entry','exit']){const sh=S[role];if(!sh||!sh.cand)continue;const R=analyzeFills(sh.cand);
+  const fills=R.trades.reduce((n,t)=>n+(t.ambig?2:t.entryFills.length+t.exitFills.length),0);
+  if(!(R.trades.length>=2||fills>2||R.incomplete))continue;
+  const L=R.trades.map((t,i)=>{if(t.ambig){const f=a=>a.map(x=>x.q+' @ '+x.p).join(' + ');return `<div style="margin-top:10px"><b>Trade ${i+1}: direction not readable</b><div class="mu" style="margin-top:4px">Buy: ${esc(f(t.buys))}<br>Sell: ${esc(f(t.sells))}<br>Both on the same candle.</div><div class="row" style="margin-top:8px;gap:8px"><button class="btn sec" id="usetr" data-sh="${role}" data-k="${i}" data-alt="L">Use as Long</button><button class="btn sec" id="usetr" data-sh="${role}" data-k="${i}" data-alt="S">Use as Short</button></div></div>`}const ef=t.entryFills.map(f=>f.q+' @ '+f.p).join(' + '),xf=t.exitFills.map(f=>f.q+' @ '+f.p).join(' + ');
+   return `<div style="margin-top:10px"><b>Trade ${i+1}: ${t.dir}</b> ${t.open?'(still open)':''}<div class="mu" style="margin-top:4px">Entry: ${esc(ef)}${t.entryFills.length>1?' (average '+esc(t.entry)+')':''}<br>Exit: ${xf?esc(xf):'none yet'}</div><div class="row" style="margin-top:8px"><button class="btn sec" id="usetr" data-sh="${role}" data-k="${i}">Use trade ${i+1} in this form</button></div></div>`}).join('');
+  out+=`<div class="card" style="margin-top:10px;border-color:var(--y)"><b>${role==='entry'?'Entry':'Exit'} screenshot: ${R.trades.length?'found '+R.trades.length+' trade'+(R.trades.length===1?'':'s'):'no complete trade read'}</b>${L}${R.notes.map(m=>`<div class="mu" style="margin-top:6px">${esc(m)}</div>`).join('')}<div class="mu" style="margin-top:6px">Read from the arrows and their contract labels. Nothing is applied until you tap a button, and you should check it against the chart.</div></div>`}
+ return out}
+function candCard0(){const S=view.scans;if(!S||!(S.entry||S.exit))return '';const r=combine(),has=r.entry||r.exitP||r.tk||r.eTime;
  const L=[];if(r.dir&&!r.dirFromExit)L.push('Direction: '+esc(r.dir));if(r.entry)L.push('Entry: '+esc(r.entry));if(r.exitP)L.push('Exit: '+esc(r.exitP));L.push(r.qty!=null?'Contracts: '+esc(r.qty)+' (read from the label '+r.qtyObs+(r.qtyObs===1?' time':' times')+', please check it against the chart)':'Contracts: not read with enough certainty, enter them yourself');if(r.tk)L.push('Ticker: '+esc(r.tk));
  const tm=r.eTime?`<div class="mu" style="margin-top:6px">Entry candle time at the crosshair: ${esc(r.eTime)} on ${esc(r.eDate)}. This is the candle minute, not the exact fill second, and the chart timezone is not shown.</div>`:'';
  const xm=r.xTime?`<div class="mu" style="margin-top:6px">Exit candle time at the crosshair: ${esc(r.xTime)} on ${esc(r.xDate)} (information only, there is no exit time field).</div>`:'';
@@ -398,6 +435,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button,[da
  else if(d.dir){readForm();view.t.dir=view.t.dir===d.dir?'':d.dir;render();syncRR()}
  else if(b.id==='addexit'){readForm();view.t.exits.push({p:'',s:''});render()}
  else if(b.id==='shareimg'){shareSheet(view.t)}
+ else if(b.id==='usetr'){readForm();const sh=view.scans&&view.scans[b.dataset.sh],R=sh&&analyzeFills(sh.cand),tr0=R&&R.trades[+b.dataset.k],tr=tr0&&tr0.ambig?(()=>{const L=b.dataset.alt==='L',ef=L?tr0.buys:tr0.sells,xf=L?tr0.sells:tr0.buys,q=ef.reduce((s,x)=>s+x.q,0),e=ef.reduce((s,x)=>s+x.p*x.q,0)/q;return{dir:L?'Long':'Short',entry:String(+e.toFixed(4)),qty:q,exitFills:xf}})():tr0,t=view.t;if(tr){t.auto=t.auto||{};t.dir=tr.dir;t.entry=tr.entry;t.qty=String(tr.qty);t.auto.dir=1;t.auto.entry=1;t.auto.qty=1;t.exits=tr.exitFills.length?tr.exitFills.map(f=>({p:String(f.p),s:String(f.q)})):[{p:'',s:''}];if(tr.exitFills.length)t.auto.exits=1}render()}
  else if(b.id==='candfin'){readForm();const r=combine(),t=view.t;t.auto=t.auto||{};if(r.entry){t.dir=r.dir;t.entry=r.entry;t.auto.dir=1;t.auto.entry=1;}if(r.exitP){t.exits=[{p:r.exitP,s:''}];t.auto.exits=1}render()}
  else if(b.id==='candqty'){readForm();const r=combine(),t=view.t;if(r.qty!=null){t.qty=String(r.qty);if(t.exits&&t.exits.length===1&&t.exits[0].p)t.exits[0].s=String(r.qty);t.auto=t.auto||{};t.auto.qty=1}render()}
  else if(b.id==='candtk'){readForm();const r=combine(),t=view.t;if(r.tk){t.sym=r.tk;t.auto=t.auto||{};t.auto.sym=1}render()}
