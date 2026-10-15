@@ -759,4 +759,9 @@ document.addEventListener('touchstart',e=>{const b=e.target.closest&&e.target.cl
 document.addEventListener('touchend',e=>{const s=ts;ts=null;if(!s||!s.b.isConnected)return;const c=e.changedTouches[0];if(Math.hypot(c.clientX-s.x,c.clientY-s.y)<10&&Date.now()-s.t<700){if(e.cancelable)e.preventDefault();s.b.click()}},{passive:false});
 const show=m=>{try{const n=document.getElementById('scan');if(n&&typeof view!=='undefined'&&view.name==='edit')n.textContent='Something failed on that tap ('+String(m).slice(0,120)+'). Nothing was changed. Please tell me this message.'}catch{}};
 addEventListener('error',e=>show(e.message));addEventListener('unhandledrejection',e=>show(e.reason&&e.reason.message||e.reason))})();</script>
+<script>/* tap probe: shows what a touch landed on inside the screenshot cards (diagnostic) */
+(function(){let t=null,el=null;const say=m=>{if(!el){el=document.createElement('div');el.style.cssText='position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 56px);z-index:80;padding:6px 8px;font-size:11px;background:#000c;color:#fff;border:1px solid #888;pointer-events:none;word-break:break-all';document.body.appendChild(el)}el.textContent=m;el.style.display='block';clearTimeout(t);t=setTimeout(()=>{el.style.display='none'},4000)};
+const nm=n=>n?(n.tagName||'?')+(n.id?'#'+n.id:'')+(n.className&&typeof n.className==='string'?'.'+n.className.split(' ')[0]:''):'none';
+document.addEventListener('touchstart',e=>{const c=e.target.closest&&e.target.closest('#app .card');if(!c||!c.querySelector('#usetr,#canddis'))return;const x=e.touches[0];say('touch on '+nm(e.target)+' | at point '+nm(document.elementFromPoint(x.clientX,x.clientY))+' | busy:'+(window.__busy?1:0))},{capture:true,passive:true});
+document.addEventListener('click',e=>{const c=e.target.closest&&e.target.closest('#app .card');if(c&&c.querySelector('#usetr,#canddis'))say('click reached '+nm(e.target))},true)})();</script>
 </body></html>
