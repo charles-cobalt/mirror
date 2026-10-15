@@ -98,7 +98,7 @@ input[type=date],input[type=time],input[type=datetime-local]{-webkit-appearance:
 @media (min-width:700px) and (hover:none){.card.trade:hover{border-color:inherit}}
 h1,.top>b{font-weight:700}.hd{display:flex;align-items:center;justify-content:center;margin:2px 0 6px}.hd .logo{all:unset;cursor:pointer;display:block;-webkit-tap-highlight-color:transparent;padding:6px 16px}.hd .logo:focus-visible{outline:1px solid #666}.hd svg{flex:0 0 auto;display:block}h2,.card>b:first-child{font-weight:600}.btn,.chip.on,.stat b{font-weight:700}button,input,textarea,select{font-family:inherit}
 #rrbox:empty{display:none}
-</style></head><body><div id="app"></div>
+html{overscroll-behavior-y:contain}</style></head><body><div id="app"></div>
 <nav id="nav"></nav><button class="fab" id="fab" aria-label="New trade">+</button>
 <input type="file" id="file" accept="image/*" hidden><input type="file" id="imp" accept=".json,application/json" hidden>
 <script src="ocr.js"></script>
@@ -690,4 +690,13 @@ function resetFlow(){if(document.getElementById('rstmod'))return;const n=trades.
 document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('#dlall');if(a){dlAll(a,document.getElementById('dlnote'));return}if(e.target.closest&&e.target.closest('#rstacc'))resetFlow()});
 })();
 </script>
+<script>/* pull down to refresh (trades list) */
+(function(){let y0=null,d=0,el=null;const ok=()=>window.scrollY<=0&&typeof view!=='undefined'&&['list','stats','set'].includes(view.name)&&window.JSYNC&&!document.getElementById('rstmod');
+function bar(){if(!el){el=document.createElement('div');el.style.cssText='position:fixed;left:0;right:0;top:0;z-index:50;text-align:center;font-size:11px;letter-spacing:.04em;color:var(--mu,#888);padding:calc(env(safe-area-inset-top,0px) + 8px) 0 8px;background:var(--bg,#111);transform:translateY(-100%);transition:transform .15s;pointer-events:none';document.body.appendChild(el)}return el}
+document.addEventListener('touchstart',e=>{y0=ok()&&e.touches.length===1?e.touches[0].clientY:null;d=0},{passive:true});
+document.addEventListener('touchmove',e=>{if(y0==null)return;d=e.touches[0].clientY-y0;if(d>0&&window.scrollY<=0){const b=bar();b.textContent=d>70?'Release to refresh':'Pull to refresh';b.style.transform='translateY('+Math.min(0,-100+d*1.2)+'%)'}},{passive:true});
+const endH=async()=>{if(y0==null)return;const go=d>70;y0=null;const b=el;if(!go){if(b)b.style.transform='translateY(-100%)';return}
+b.textContent='Refreshing...';b.style.transform='translateY(0)';let r=false;try{r=await JSYNC.refresh()}catch(e){}
+b.textContent=r?'Up to date':'Sign in under Settings to sync';setTimeout(()=>{b.style.transform='translateY(-100%)'},500)};document.addEventListener('touchend',endH);document.addEventListener('touchcancel',endH);
+})();</script>
 </body></html>
