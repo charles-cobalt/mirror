@@ -17,7 +17,8 @@ async function start(){
  try{S.st=Object.assign(S.st,(await kvget('sync'))||{})}catch{}
  S.ready=true;rerender();
  if(!navigator.onLine&&!S.st.uid)return;
- try{const k=await sdk();k.a.onAuthStateChanged(k.auth,async u=>{S.user=u;S.ver=!!(u&&u.emailVerified);rerender();if(u&&S.ver)await linkAndSync(u)})}catch(e){S.sdk=null}
+ try{const k=await sdk();k.a.onAuthStateChanged(k.auth,async u=>{S.user=u;S.ver=!!(u&&u.emailVerified);rerender();if(S.un){try{S.un.forEach(x=>x())}catch{}S.un=null}
+if(u&&S.ver){await linkAndSync(u);listen(k,u)}})}catch(e){S.sdk=null}
 }
 const FRESH=()=>({uid:'',hashes:{},base:{},cfgHash:'',cfgBase:'',lastPull:0,lastCfgU:0,lastSync:0});
 async function stash(o){await kvset('own:'+o,{trades:JSON.parse(JSON.stringify(trades)),cfg:JSON.parse(JSON.stringify(cfg)),st:S.st})}
@@ -68,13 +69,26 @@ async function push(k,all){
  const chn=ch();if(chn!==S.st.cfgHash&&(chn!==S.st.cfgBase||all)){const u=Date.now();await f.setDoc(f.doc(k.fdb,'users',S.user.uid,'meta','cfg'),{u,d:JSON.stringify(cfg)});S.st.cfgHash=chn;S.st.lastCfgU=u;c++}
  return c}
 async function sync(all){
- if(S.busy||!S.user||!S.ver||S.st.uid!==S.user.uid)return;S.busy=true;setMsg('Syncing...');
+ if(S.busy){S.again=1;return}
+ if(!S.user||!S.ver||S.st.uid!==S.user.uid)return;S.busy=true;setMsg('Syncing...');
  try{const k=await sdk();await S.user.getIdToken(true);const a=await pull(k);await save();const b=await push(k,all);S.st.lastSync=Date.now();await saveSt();
   setMsg('Synced '+new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+(a.got?' · '+a.got+' updated from your account':'')+(b?' · '+b+' sent':''));}
  catch(e){setMsg(nice(e),1)}
- S.busy=false;rerender();try{if(view.name==='list')render()}catch{}}
+ S.busy=false;if(S.again){S.again=0;setTimeout(()=>sync(false),200)}rerender();try{if(['list','stats'].includes(view.name))render()}catch{}}
+
+let lt;
+function nudge(){clearTimeout(lt);lt=setTimeout(()=>sync(false),400)}
+function listen(k,u){
+ try{const f=k.f,now=Date.now()-1000,un=[];
+  un.push(f.onSnapshot(f.query(col(k,'trades'),f.where('u','>',now)),sn=>{if(sn.docChanges().some(c=>!c.doc.metadata.hasPendingWrites))nudge()},()=>{}));
+  un.push(f.onSnapshot(f.doc(k.fdb,'users',u.uid,'meta','cfg'),d=>{if(d.exists()&&!d.metadata.hasPendingWrites&&(d.data().u||0)>(S.st.lastCfgU||0))nudge()},()=>{}));
+  S.un=un}catch{}}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)nudge()});
+window.addEventListener('focus',nudge);window.addEventListener('pageshow',nudge);window.addEventListener('online',nudge);
+setInterval(()=>{if(!document.hidden&&S.user&&S.ver)sync(false)},60000);
 let tm;
 window.JSYNC={
+ async refresh(){if(!S.user||!S.ver)return false;await sync(false);return !S.err},
  changed(){clearTimeout(tm);if(S.user&&S.ver)tm=setTimeout(()=>sync(false),1500)},
  card(){
   const row='style="margin-top:10px"';
