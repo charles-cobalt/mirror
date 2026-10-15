@@ -753,4 +753,10 @@ const endH=async()=>{if(y0==null)return;const go=d>70;y0=null;const b=el;if(!go)
 b.textContent='Refreshing...';b.style.transform='translateY(0)';let r=false;try{r=await JSYNC.refresh()}catch(e){}
 b.textContent=r?'Up to date':'Sign in under Settings to sync';setTimeout(()=>{b.style.transform='translateY(-100%)'},500)};document.addEventListener('touchend',endH);document.addEventListener('touchcancel',endH);
 })();</script>
+<script>/* tap safety net for the screenshot cards + inline error report */
+(function(){const SEL='#usetr,#canddis,#candfin,#candqty,#candtk,#candtime';let ts=null;
+document.addEventListener('touchstart',e=>{const b=e.target.closest&&e.target.closest(SEL);ts=b&&e.touches.length===1?{b,x:e.touches[0].clientX,y:e.touches[0].clientY,t:Date.now()}:null},{passive:true});
+document.addEventListener('touchend',e=>{const s=ts;ts=null;if(!s||!s.b.isConnected)return;const c=e.changedTouches[0];if(Math.hypot(c.clientX-s.x,c.clientY-s.y)<10&&Date.now()-s.t<700){if(e.cancelable)e.preventDefault();s.b.click()}},{passive:false});
+const show=m=>{try{const n=document.getElementById('scan');if(n&&typeof view!=='undefined'&&view.name==='edit')n.textContent='Something failed on that tap ('+String(m).slice(0,120)+'). Nothing was changed. Please tell me this message.'}catch{}};
+addEventListener('error',e=>show(e.message));addEventListener('unhandledrejection',e=>show(e.reason&&e.reason.message||e.reason))})();</script>
 </body></html>
