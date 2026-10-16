@@ -180,21 +180,21 @@ function nav(){const n=[['list','Trades'],['stats','Stats'],['set','Settings']];
  document.getElementById('nav').style.display=['edit','detail'].includes(view.name)?'none':'';document.getElementById('fab').style.display=['edit','detail','stats','set'].includes(view.name)?'none':'';if(view.name!=='list'){const b=document.getElementById('sortb'),l=document.getElementById('sortl');if(b)b.style.display=l.style.display='none'}}
 const pill=r=>r==='profit'?'<span class="pill p-profit">PROFIT</span>':r==='loss'?'<span class="pill p-loss">LOSS</span>':r==='be'?'<span class="pill p-none">BREAKEVEN</span>':'<span class="pill p-none">OPEN</span>';
 let lastV='',lastId=null;function render(){try{if(cfg&&!cfg.theme){const o=localStorage.getItem('mm_theme');if(!localStorage.getItem('mm_theme_m')){localStorage.setItem('mm_theme_m','1');if(o){cfg.theme=o;save()}}}applyTheme()}catch(e){}const a=document.getElementById('app');const keep=view.name==='edit'&&lastV==='edit'&&lastId===(view.t&&view.t.id),y0=window.scrollY;lastV=view.name;lastId=view.t&&view.t.id;nav();({list:rList,stats:rStats,set:rSet,edit:rEdit,detail:rDetail})[view.name](a);if(view.name==='detail')drawSheet(document.getElementById('sheet'),view.t);window.scrollTo(0,keep?y0:0)}
-const SORTS=[['date','Trade date'],['num','Trade #'],['opened','Last opened'],['mod','Last modified'],['result','Result'],['rr','R:R']];
-const sortI=()=>{try{const i=+localStorage.getItem('mm_sort');return i>=0&&i<SORTS.length?i:0}catch(e){return 0}};
+const SORTS=[['date','Trade date'],['date','Trade date',1],['num','Trade #'],['num','Trade #',1],['opened','Last opened'],['opened','Last opened',1],['mod','Last modified'],['mod','Last modified',1],['result','Result'],['result','Result',1],['rr','R:R'],['rr','R:R',1]];
+const sortI=()=>{try{if(localStorage.getItem('mm_sort_v')!=='2'){const o=+localStorage.getItem('mm_sort'),n=o>=0&&o<6?o*2:0;localStorage.setItem('mm_sort',String(n));localStorage.setItem('mm_sort_v','2');return n}const i=+localStorage.getItem('mm_sort');return i>=0&&i<SORTS.length?i:0}catch(e){return 0}};
 const openedOf=t=>{try{return (JSON.parse(localStorage.getItem('mm_open')||'{}'))[t.id]||0}catch(e){return 0}};
 const modOf=t=>t.mod||parseInt(t.id,36)||0;
-function sortTrades(arr){const k=SORTS[sortI()][0],dd=(x,y)=>y.date.localeCompare(x.date)||y.id.localeCompare(x.id);
+function sortTrades(arr){const s=SORTS[sortI()],k=s[0],up=s[2]===1,da=(x,y)=>x.date.localeCompare(y.date)||x.id.localeCompare(y.id),dd=(x,y)=>y.date.localeCompare(x.date)||y.id.localeCompare(x.id),tb=up?da:dd;
  const numv=t=>{const n=parseFloat(t.num);return isNaN(n)?null:n};
- const rk={profit:0,be:1,loss:2};
- const by=({date:dd,
-  num:(x,y)=>{const a=numv(x),b=numv(y);return a==null&&b==null?dd(x,y):a==null?1:b==null?-1:b-a||dd(x,y)},
-  opened:(x,y)=>openedOf(y)-openedOf(x)||dd(x,y),
-  mod:(x,y)=>modOf(y)-modOf(x)||dd(x,y),
-  result:(x,y)=>(rk[x.result]??3)-(rk[y.result]??3)||dd(x,y),
-  rr:(x,y)=>{const a=rOf(x),b=rOf(y);return a==null&&b==null?dd(x,y):a==null?1:b==null?-1:b-a||dd(x,y)}})[k];
+ const rk=up?{loss:0,be:1,profit:2}:{profit:0,be:1,loss:2};
+ const by=({date:(x,y)=>up?da(x,y):dd(x,y),
+  num:(x,y)=>{const a=numv(x),b=numv(y);return a==null&&b==null?tb(x,y):a==null?1:b==null?-1:(up?a-b:b-a)||tb(x,y)},
+  opened:(x,y)=>{const a=openedOf(x),b=openedOf(y);return up?(a||Infinity)-(b||Infinity)||tb(x,y):b-a||tb(x,y)},
+  mod:(x,y)=>(up?modOf(x)-modOf(y):modOf(y)-modOf(x))||tb(x,y),
+  result:(x,y)=>(rk[x.result]??3)-(rk[y.result]??3)||tb(x,y),
+  rr:(x,y)=>{const a=rOf(x),b=rOf(y);return a==null&&b==null?tb(x,y):a==null?1:b==null?-1:(up?a-b:b-a)||tb(x,y)}})[k];
  return [...arr].sort(by)}
-function sortUI(){const b=document.getElementById('sortb'),l=document.getElementById('sortl');if(!b)return;const on=view.name==='list'&&trades.length>1;b.style.display=on?'':'none';l.style.display=on?'flex':'none';l.textContent=SORTS[sortI()][1]}
+function sortUI(){const b=document.getElementById('sortb'),l=document.getElementById('sortl');if(!b)return;const on=view.name==='list'&&trades.length>1;b.style.display=on?'':'none';l.style.display=on?'flex':'none';const s=SORTS[sortI()];l.textContent=s[1]+(s[2]===1?' \u2191':' \u2193')}
 function rList(a){const s=sortTrades(trades);sortUI();
  a.innerHTML=HD('')+(s.length?s.map(t=>`<div class="card trade" data-open="${t.id}">${t.img?`<img src="${t.img}">`:'<img alt="">'}<div class="m"><div class="t">${t.num?'#'+esc(t.num)+' · ':''}${esc(t.date)}${etTime(t)?' · '+esc(etTime(t)):''}</div><div class="s">${esc([t.sym,t.grade?'Grade '+t.grade:''].filter(Boolean).join(' · '))}${t.target?' · Target '+esc(t.target):''}${t.actual?' · Actual R:R '+esc(t.actual):''}</div></div>${pill(t.result)}</div>`).join(''):'<div class="empty">No trades yet.<br>Tap + to log your first one.</div>')}
 const LOGO=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="60 66 392 290" width="76" height="56" role="img" aria-label="MIRR•R logo"><defs><linearGradient id="fade" gradientUnits="userSpaceOnUse" x1="0" y1="259" x2="0" y2="344"><stop offset="0" stop-color="#f2f2f2" stop-opacity="0.2"/><stop offset="1" stop-color="#f2f2f2" stop-opacity="0"/></linearGradient><linearGradient id="hf" gradientUnits="userSpaceOnUse" x1="76" y1="0" x2="436" y2="0"><stop offset="0" stop-color="#000"/><stop offset="0.3" stop-color="#aaa"/><stop offset="0.5" stop-color="#fff"/><stop offset="0.7" stop-color="#aaa"/><stop offset="1" stop-color="#000"/></linearGradient><mask id="h" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512"><rect width="512" height="512" fill="url(#hf)"/></mask><clipPath id="cu"><rect x="0" y="0" width="512" height="256"/></clipPath><clipPath id="cl"><rect x="0" y="256" width="512" height="256"/></clipPath></defs><path d="M64 256Q256 70 448 256Q256 106 64 256Z" fill="#f2f2f2"/><path d="M194 256A62 62 0 0 1 318 256" fill="none" stroke="#f2f2f2" stroke-width="20"/><path d="M230 256A26 26 0 0 1 282 256Z" fill="#f2f2f2"/><g mask="url(#h)"><g transform="translate(0,3) translate(0,256) scale(1,0.8) translate(0,-256)"><path d="M64 256Q256 442 448 256Q256 406 64 256Z" fill="url(#fade)"/><path d="M194 256A62 62 0 0 0 318 256" fill="none" stroke="url(#fade)" stroke-width="20"/><path d="M230 256A26 26 0 0 0 282 256Z" fill="url(#fade)"/></g></g></svg>`;const HD=t=>`<div class="hd"><button type="button" class="logo" data-go="list" aria-label="Home (Trades)">${LOGO}</button></div>${t?`<h1>${t}</h1>`:''}`;
