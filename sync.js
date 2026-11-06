@@ -9,12 +9,13 @@ const hs=s=>{s=String(s);let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.cha
 const th=t=>hs(JSON.stringify(t)),ch=()=>hs(JSON.stringify(cfg));
 const esc2=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const rerender=()=>{try{if(typeof view!=='undefined'&&view.name==='set')render()}catch{}};
-const setMsg=(m,e)=>{S.msg=m||'';S.err=e?'1':'';rerender()};
+const setMsg=(m,e)=>{S.msg=m||'';S.err=e?'1':'';const el=document.getElementById('symsg');if(el){el.textContent=S.msg;el.style.display=S.msg?'':'none';el.style.color=S.err?'var(--y)':''}else rerender()};
 const saveSt=()=>kvset('sync',S.st);
 const nice=e=>{const c=(e&&e.code)||'';return({'auth/email-already-in-use':'That email already has an account. Use Sign in.','auth/invalid-credential':'Email or password is wrong.','auth/wrong-password':'Email or password is wrong.','auth/user-not-found':'Email or password is wrong.','auth/invalid-email':'That email address is not valid.','auth/weak-password':'Use a password of at least 6 characters.','auth/too-many-requests':'Too many tries. Wait a few minutes and try again.','auth/network-request-failed':'No connection. Try again when online.','permission-denied':'Not allowed yet. Verify your email first, then sync.','resource-exhausted':'The free daily limit was reached. Sync resumes when it resets.','unavailable':'No connection to the sync service. Your journal on this phone is safe.'})[c]||('Sync problem ('+(c||e&&e.message||'unknown')+'). Your journal on this phone is unchanged.')};
 async function sdk(){if(S.sdk)return S.sdk;const [a,au,fs]=await Promise.all([import(B+'firebase-app.js'),import(B+'firebase-auth.js'),import(B+'firebase-firestore.js')]);const app=a.initializeApp(CFG);S.sdk={app,a:au,f:fs,auth:au.getAuth(app),fdb:fs.getFirestore(app)};return S.sdk}
 async function start(){
  try{S.st=Object.assign(S.st,(await kvget('sync'))||{})}catch{}
+ S.st.base={}; // legacy pre-sign-in baseline: those trades now upload automatically on the next sync
  S.ready=true;rerender();
  if(!navigator.onLine&&!S.st.uid)return;
  try{const k=await sdk();k.a.onAuthStateChanged(k.auth,async u=>{S.user=u;S.ver=!!(u&&u.emailVerified);rerender();if(S.un){try{S.un.forEach(x=>x())}catch{}S.un=null}
@@ -28,7 +29,7 @@ async function linkAndSync(u){
   await stash(S.st.uid);await restore(u.uid);S.st.uid=u.uid;S.st.email=u.email||'';await saveSt();location.reload();return
  }
  if(!S.st.uid)await kvset('own:anon',{trades:JSON.parse(JSON.stringify(trades)),cfg:JSON.parse(JSON.stringify(cfg)),st:null});
- if(!S.st.uid){S.st.uid=u.uid;S.st.email=u.email||'';S.st.base={};trades.forEach(t=>S.st.base[t.id]=th(t));S.st.cfgBase=ch();await saveSt()}
+ if(!S.st.uid){S.st.uid=u.uid;S.st.email=u.email||'';S.st.base={};S.st.cfgBase=ch();await saveSt()}
  await sync(false)
 }
 const col=(k,n)=>k.f.collection(k.fdb,'users',S.user.uid,n);
@@ -71,10 +72,12 @@ async function push(k,all){
 async function sync(all){
  if(S.busy){S.again=1;return}
  if(!S.user||!S.ver||S.st.uid!==S.user.uid)return;S.busy=true;setMsg('Syncing...');
- try{const k=await sdk();await S.user.getIdToken(true);const a=await pull(k);await save();const b=await push(k,all);S.st.lastSync=Date.now();await saveSt();
+ let got=0;
+ try{const k=await sdk();await S.user.getIdToken(true);const a=await pull(k);got=a.got;await save();const b=await push(k,all);S.st.lastSync=Date.now();await saveSt();
   setMsg('Synced '+new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+(a.got?' · '+a.got+' updated from your account':'')+(b?' · '+b+' sent':''));}
  catch(e){setMsg(nice(e),1)}
- S.busy=false;if(S.again){S.again=0;setTimeout(()=>sync(false),200)}rerender();try{if(['list','stats'].includes(view.name))render()}catch{}}
+ S.busy=false;if(S.again){S.again=0;setTimeout(()=>sync(false),200)}
+ if(got&&typeof view!=='undefined'&&['list','stats'].includes(view.name)){const y=window.scrollY;try{render()}catch{}window.scrollTo(0,y)}}
 
 let lt;
 function nudge(){clearTimeout(lt);lt=setTimeout(()=>sync(false),400)}
@@ -92,10 +95,9 @@ window.JSYNC={
  changed(){clearTimeout(tm);if(S.user&&S.ver)tm=setTimeout(()=>sync(false),1500)},
  card(){
   const row='style="margin-top:10px"';
-  const m=S.msg?`<p class="mu" style="margin-top:10px;${S.err?'color:var(--y)':''}">${esc2(S.msg)}</p>`:'';
+  const m=`<p class="mu" id="symsg" style="${S.msg?'':'display:none;'}margin-top:4px;${S.err?'color:var(--y)':''}">${esc2(S.msg)}</p>`;
   if(!S.ready)return '';
-  const np=trades.filter(t=>!S.st.hashes[t.id]).length;
-  if(S.user&&S.ver)return `<h2>Account</h2><div class="card"><p class="mu">Signed in as ${esc2(S.user.email)}. Your journal syncs to this private account and shows on this phone only while you are signed in.</p><div class="row"><button class="btn" data-sy="sync">Sync now</button><button class="btn sec" data-sy="out">Sign out</button></div><div class="row" ${row}><button class="btn sec" data-sy="all">Upload this device's journal</button></div><p class="mu" style="margin-top:10px">${np?np+(np===1?' trade on this phone is':' trades on this phone are')+' not uploaded yet. They stay local until you upload them or edit them.':'All trades on this phone are uploaded.'} Signing out hides this account's journal on this phone; it comes back when you sign in again.</p>${m}</div>`;
+  if(S.user&&S.ver)return `<h2>Account</h2><div class="card"><div>${esc2(S.user.email)}</div><div class="mu" style="margin-top:4px">Email verified. Synced across your devices.${S.st.lastSync?' Last synced '+new Date(S.st.lastSync).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'.':''}</div>${m}<div class="row" style="margin-top:10px"><button class="btn sec" data-sy="sync" style="flex:1;margin-top:0">Sync now</button><button class="btn sec" data-sy="out" style="flex:1;margin-top:0">Sign out</button></div></div>`;
   if(S.user)return `<h2>Account</h2><div class="card"><p class="mu">Check ${esc2(S.user.email)} for the verification email from this journal, open its link, then tap the button below. Nothing syncs until your email is verified.</p><div class="row"><button class="btn" data-sy="chk">I verified</button><button class="btn sec" data-sy="resend">Resend email</button></div><div class="row" ${row}><button class="btn sec" data-sy="out">Sign out</button></div>${m}</div>`;
   return `<h2>Account</h2><div class="card"><p class="mu">Optional. Sign in to keep a private copy of your journal that syncs across your devices. Without an account, everything stays on this phone as before.</p><label class="f">Email</label><input type="email" id="syem" autocomplete="email" autocapitalize="off" spellcheck="false" value="${esc2(S.em||'')}"><label class="f">Password</label><input type="password" id="sypw" autocomplete="current-password"><div class="row" ${row}><button class="btn" data-sy="in">Sign in</button><button class="btn sec" data-sy="new">Create account</button></div><div class="row" ${row}><button class="btn sec" data-sy="reset">Forgot password</button></div>${m}</div>`},
  init(){start()}};
@@ -104,7 +106,6 @@ document.addEventListener('click',async e=>{
  const E=((document.getElementById('syem')||{}).value||'').trim(),P=(document.getElementById('sypw')||{}).value||'';
  try{
   if(a==='sync')return void sync(false);
-  if(a==='all'){if(confirm('Upload all trades on this phone to your private account?'))await sync(true);return}
   const k=await sdk();
   if(a==='in'){S.em=E;if(!S.em||!P)return setMsg('Enter your email and password.',1);setMsg('Signing in...');await k.a.signInWithEmailAndPassword(k.auth,S.em,P);setMsg('')}
   else if(a==='new'){S.em=E;if(!S.em||!P)return setMsg('Enter an email and a password.',1);setMsg('Creating account...');const c=await k.a.createUserWithEmailAndPassword(k.auth,S.em,P);await k.a.sendEmailVerification(c.user);setMsg('Verification email sent to '+S.em+'.')}
