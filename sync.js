@@ -8,7 +8,15 @@ const S={user:null,ver:false,msg:'',busy:false,ready:false,sdk:null,st:{uid:'',h
 const hs=s=>{s=String(s);let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return s.length+':'+(h>>>0)};
 const th=t=>hs(JSON.stringify(t)),ch=()=>hs(JSON.stringify(cfg));
 const esc2=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const rerender=()=>{try{if(typeof view!=='undefined'&&view.name==='set')render()}catch{}};
+let pendR=false,dirtySet=false;
+const flushR=()=>{try{if(pendR&&typeof view!=='undefined'&&view.name==='set'){pendR=false;dirtySet=false;render()}}catch(e){}};
+document.addEventListener('input',e=>{try{if(typeof view!=='undefined'&&view.name==='set'&&e.target.closest&&e.target.closest('#app'))dirtySet=true}catch(e){}},true);
+document.addEventListener('click',e=>{try{if(pendR&&typeof view!=='undefined'&&view.name==='set'){const c=e.target.closest&&e.target.closest('#app button,#app .chip,#app select,#app a');if(c)setTimeout(flushR,0)}}catch(e){}},true);
+const rerender=()=>{try{
+ if(typeof view==='undefined'||view.name!=='set'){pendR=false;dirtySet=false;return}
+ const a=document.activeElement,f=a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'||a.tagName==='SELECT')&&a.closest('#app');
+ if(f||dirtySet){pendR=true;return}
+ render()}catch(e){}};
 const setMsg=(m,e)=>{S.msg=m||'';S.err=e?'1':'';const el=document.getElementById('symsg');if(el){el.textContent=S.msg;el.style.display=S.msg?'':'none';el.style.color=S.err?'var(--y)':''}else rerender()};
 const saveSt=()=>kvset('sync',S.st);
 const nice=e=>{const c=(e&&e.code)||'';return({'auth/email-already-in-use':'That email already has an account. Use Sign in.','auth/invalid-credential':'Email or password is wrong.','auth/wrong-password':'Email or password is wrong.','auth/user-not-found':'Email or password is wrong.','auth/invalid-email':'That email address is not valid.','auth/weak-password':'Use a password of at least 6 characters.','auth/too-many-requests':'Too many tries. Wait a few minutes and try again.','auth/network-request-failed':'No connection. Try again when online.','permission-denied':'Not allowed yet. Verify your email first, then sync.','resource-exhausted':'The free daily limit was reached. Sync resumes when it resets.','unavailable':'No connection to the sync service. Your journal on this phone is safe.'})[c]||('Sync problem ('+(c||e&&e.message||'unknown')+'). Your journal on this phone is unchanged.')};
